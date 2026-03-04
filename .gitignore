@@ -1,0 +1,26 @@
+# ---------- Backend (Go) ----------
+backend/server
+*.db
+*.db-wal
+*.db-shm
+
+# ---------- Frontend (Node / Vite) ----------
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Editor / IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- Environment ----------
+.env
+.env.*
+!.env.example

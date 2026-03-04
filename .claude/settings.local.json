@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(chmod +x:*)",
+      "Bash(mv mock-server:*)",
+      "Bash(sed:*)",
+      "Bash(find .:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(npm install:*)",
+      "Bash(mv:*)",
+      "Bash(kill 72142:*)",
+      "Bash(kill 268:*)",
+      "Bash(lsof:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}
