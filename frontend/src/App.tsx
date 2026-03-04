@@ -5,6 +5,7 @@ import DashboardPage from './presentation/pages/DashboardPage';
 import ListingsPage from './presentation/pages/ListingsPage';
 import ListingDetailPage from './presentation/pages/ListingDetailPage';
 import ShoppersPage from './presentation/pages/ShoppersPage';
+import ShopperDetailPage from './presentation/pages/ShopperDetailPage';
 import ScenariosPage from './presentation/pages/ScenariosPage';
 import SettingsPage from './presentation/pages/SettingsPage';
 import AutoGeneratorPage from './presentation/pages/AutoGeneratorPage';
@@ -29,6 +30,7 @@ export default function App() {
             <Route path={ROUTES.LISTINGS} element={<ListingsPage />} />
             <Route path={ROUTES.LISTING_DETAIL} element={<ListingDetailPage />} />
             <Route path={ROUTES.SHOPPERS} element={<ShoppersPage />} />
+            <Route path={ROUTES.SHOPPER_DETAIL} element={<ShopperDetailPage />} />
             <Route path={ROUTES.SCENARIOS} element={<ScenariosPage />} />
             <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
             <Route path={ROUTES.AUTO_GENERATOR} element={<AutoGeneratorPage />} />

@@ -125,6 +125,10 @@ func (e *Engine) PlaceBid(req BidRequest) (*BidResult, error) {
 
 // PlaceSniperBid places a bid bypassing TOS and timing validation.
 func (e *Engine) PlaceSniperBid(listingID int64, shopperID string, bidAmountUsd int64) (*BidResult, error) {
+	if bidAmountUsd <= 0 {
+		return nil, ErrBidTooLow
+	}
+
 	listing, err := e.Store.GetListing(listingID)
 	if err != nil {
 		return nil, ErrServerError
@@ -134,6 +138,11 @@ func (e *Engine) PlaceSniperBid(listingID int64, shopperID string, bidAmountUsd 
 	}
 	if listing.ListingStatus != model.StatusOpen {
 		return nil, ErrListingClosed
+	}
+
+	// Reject bids below the asking price floor
+	if bidAmountUsd < listing.AskingPriceUsd {
+		return nil, ErrBidTooLow
 	}
 
 	return e.placeBidInternal(listing, shopperID, bidAmountUsd)

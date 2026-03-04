@@ -103,6 +103,7 @@ func main() {
 	r.HandleFunc("/admin/listings/{id}/sniper-bid", adminH.SniperBid).Methods("POST")
 	r.HandleFunc("/admin/shoppers", adminH.CreateShopper).Methods("POST")
 	r.HandleFunc("/admin/shoppers", adminH.ListShoppers).Methods("GET")
+	r.HandleFunc("/admin/shoppers/{id}", adminH.GetShopper).Methods("GET")
 	r.HandleFunc("/admin/reset", adminH.Reset).Methods("POST")
 	r.HandleFunc("/admin/wipe", adminH.WipeDB).Methods("POST")
 	r.HandleFunc("/admin/export", adminH.ExportDB).Methods("GET")

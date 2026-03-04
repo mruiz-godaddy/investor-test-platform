@@ -120,9 +120,21 @@ export default function ListingDetailPage() {
                       }`}>{bid.bidType}</span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
-                        bid.bidStatus === 'CANCELLED' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                      }`}>{bid.bidStatus}</span>
+                      {(() => {
+                        let label: string = bid.bidStatus;
+                        let cls = 'bg-green-100 text-green-800';
+                        if (bid.bidStatus === 'CANCELLED') {
+                          label = 'CANCELLED';
+                          cls = 'bg-red-100 text-red-800';
+                        } else if (listing.listingStatus === 'SOLD' && bid.shopperId === listing.highestBidderShopper && bid.isHighBid) {
+                          label = 'WON';
+                          cls = 'bg-green-100 text-green-800';
+                        } else if (listing.listingStatus === 'SOLD' || listing.listingStatus === 'CLOSED') {
+                          label = 'LOST';
+                          cls = 'bg-red-100 text-red-800';
+                        }
+                        return <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-900">{bid.isHighBid ? 'Yes' : '-'}</td>
                     <td className="px-3 py-2 text-xs text-gray-500 font-mono">{bid.parentBidId ? bid.parentBidId.slice(0, 8) : '-'}</td>

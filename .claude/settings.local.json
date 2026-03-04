@@ -15,7 +15,8 @@
       "Bash(kill 268:*)",
       "Bash(lsof:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

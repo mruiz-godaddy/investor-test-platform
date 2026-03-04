@@ -375,6 +375,59 @@ func (h *AdminHandler) ListShoppers(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, 200, shoppers)
 }
 
+// --- 5.6b GetShopper — GET /admin/shoppers/{id} ---
+
+func (h *AdminHandler) GetShopper(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	shopperID := vars["id"]
+
+	shopper, err := h.Store.GetShopper(shopperID)
+	if err != nil {
+		WriteJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	if shopper == nil {
+		WriteJSON(w, 404, map[string]string{"error": "shopper not found"})
+		return
+	}
+
+	bids, err := h.Store.GetBidsForShopper(shopperID)
+	if err != nil {
+		WriteJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+
+	bidHistory := make([]map[string]interface{}, 0, len(bids))
+	for _, bid := range bids {
+		listing, _ := h.Store.GetListing(bid.ListingID)
+		entry := map[string]interface{}{
+			"bidId":        bid.BidID,
+			"listingId":    bid.ListingID,
+			"shopperId":    bid.ShopperID,
+			"bidAmountUsd": bid.BidAmountUsd,
+			"bidType":      bid.BidType,
+			"bidStatus":    bid.BidStatus,
+			"isHighBid":    bid.IsHighBid,
+			"parentBidId":  bid.ParentBidID,
+			"createdAt":    bid.CreatedAt,
+		}
+		if listing != nil {
+			entry["domainName"] = listing.DomainName
+			entry["listingStatus"] = listing.ListingStatus
+			entry["highestBidderShopper"] = listing.HighestBidderShopper
+		}
+		bidHistory = append(bidHistory, entry)
+	}
+
+	WriteJSON(w, 200, map[string]interface{}{
+		"shopperId":   shopper.ShopperID,
+		"memberId":    shopper.MemberID,
+		"customerId":  shopper.CustomerID,
+		"displayName": shopper.DisplayName,
+		"bidHistory":  bidHistory,
+	})
+}
+
 // --- 5.7 Reset — POST /admin/reset ---
 
 func (h *AdminHandler) Reset(w http.ResponseWriter, r *http.Request) {

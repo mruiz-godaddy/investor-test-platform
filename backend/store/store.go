@@ -437,6 +437,28 @@ func (s *Store) GetAllActiveProxies(listingID int64) (map[string]*model.Bid, err
 	return result, rows.Err()
 }
 
+// GetBidsForShopper returns all bids placed by a given shopper.
+func (s *Store) GetBidsForShopper(shopperID string) ([]model.Bid, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT * FROM bids WHERE shopper_id = ? ORDER BY created_at DESC`,
+		shopperID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bids []model.Bid
+	for rows.Next() {
+		b, err := scanBid(rows)
+		if err != nil {
+			return nil, err
+		}
+		bids = append(bids, *b)
+	}
+	return bids, rows.Err()
+}
+
 // ListAllBids returns all bids in the database.
 func (s *Store) ListAllBids() ([]model.Bid, error) {
 	rows, err := s.DB.Conn.Query(`SELECT * FROM bids ORDER BY listing_id, created_at DESC`)

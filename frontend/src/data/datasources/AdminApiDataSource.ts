@@ -3,6 +3,7 @@ import api from '../../lib/axios';
 import { adminListingSchema, createListingResponseSchema } from '../schemas/listingSchema';
 import { bidResultSchema } from '../schemas/bidResultSchema';
 import { shopperSchema } from '../schemas/shopperSchema';
+import { shopperDetailSchema } from '../schemas/shopperDetailSchema';
 import { configSnapshotSchema } from '../schemas/configSchema';
 import { timeResponseSchema } from '../schemas/timeSchema';
 import { scenarioResultSchema } from '../schemas/scenarioSchema';
@@ -48,6 +49,11 @@ export class AdminApiDataSource {
   async getShoppers() {
     const { data } = await api.get('/admin/shoppers');
     return z.array(shopperSchema).parse(data);
+  }
+
+  async getShopper(id: string) {
+    const { data } = await api.get(`/admin/shoppers/${id}`);
+    return shopperDetailSchema.parse(data);
   }
 
   async reset() {
