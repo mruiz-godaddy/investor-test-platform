@@ -23,7 +23,7 @@ export default function ListingsPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Listings</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Listings</h2>
         <button
           onClick={() => setShowCreate(true)}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"

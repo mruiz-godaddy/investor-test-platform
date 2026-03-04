@@ -24,16 +24,16 @@ export default function AuctionsPage() {
   const hasListings = listings.length > 0;
 
   const cards = [
-    { label: 'Total', value: totalCount, color: 'bg-gray-100 text-gray-800' },
-    { label: 'Open', value: openCount, color: 'bg-green-100 text-green-800' },
-    { label: 'Sold', value: soldCount, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Closed', value: closedCount, color: 'bg-red-100 text-red-800' },
+    { label: 'Total', value: totalCount, color: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100' },
+    { label: 'Open', value: openCount, color: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' },
+    { label: 'Sold', value: soldCount, color: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' },
+    { label: 'Closed', value: closedCount, color: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Auctions</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Auctions</h2>
         {hasListings && (
           <QuickCreateControl onSubmit={createListing} isPending={isCreating} />
         )}

@@ -12,7 +12,7 @@ export default function ShoppersPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900">Shoppers</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shoppers</h2>
       <div className="mt-4 space-y-6">
         <CreateShopperForm onSubmit={createShopper} />
         <ShoppersTable shoppers={shoppers} onRowClick={(s) => navigate(`/shoppers/${s.shopperId}`)} />

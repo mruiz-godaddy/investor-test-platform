@@ -12,26 +12,26 @@ export default function ShoppersTable({ shoppers, onRowClick }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-950">
           <tr>
             {['Shopper ID', 'Member ID', 'Customer ID', 'Display Name'].map((h) => (
-              <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{h}</th>
+              <th key={h} className="px-4 py-3 text-left text-base font-medium uppercase text-gray-500 dark:text-gray-400">{h}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 bg-white">
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
           {shoppers.map((s) => (
             <tr
               key={s.shopperId}
               onClick={() => onRowClick?.(s)}
-              className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}
+              className={onRowClick ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : ''}
             >
-              <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.shopperId}</td>
-              <td className="px-4 py-3 text-sm text-gray-500">{s.memberId}</td>
-              <td className="px-4 py-3 text-sm text-gray-500">{s.customerId || '-'}</td>
-              <td className="px-4 py-3 text-sm text-gray-500">{s.displayName || '-'}</td>
+              <td className="px-4 py-3 text-lg font-medium text-gray-900 dark:text-white">{s.shopperId}</td>
+              <td className="px-4 py-3 text-lg text-gray-500 dark:text-gray-400">{s.memberId}</td>
+              <td className="px-4 py-3 text-lg text-gray-500 dark:text-gray-400">{s.customerId || '-'}</td>
+              <td className="px-4 py-3 text-lg text-gray-500 dark:text-gray-400">{s.displayName || '-'}</td>
             </tr>
           ))}
         </tbody>

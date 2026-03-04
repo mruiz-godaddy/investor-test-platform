@@ -22,7 +22,7 @@ export default function CountdownTimer({ endTime, className }: Props) {
   return (
     <span
       className={`font-mono text-sm ${
-        isExpired ? 'text-gray-400' : isUrgent ? 'text-red-600 font-bold' : 'text-gray-900'
+        isExpired ? 'text-amber-500 dark:text-amber-400' : isUrgent ? 'text-red-600 font-bold' : 'text-gray-900 dark:text-white'
       } ${className ?? ''}`}
     >
       {isExpired ? 'Expired' : formatCountdown(diffMs)}

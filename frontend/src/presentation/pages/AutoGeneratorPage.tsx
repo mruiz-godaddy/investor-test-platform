@@ -7,8 +7,8 @@ export default function AutoGeneratorPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900">Auto-Generator</h2>
-      <p className="mt-1 text-sm text-gray-500">Automatically create listings at a configurable interval.</p>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Auto-Generator</h2>
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Automatically create listings at a configurable interval.</p>
       <div className="mt-4 flex gap-2">
         {isRunning ? (
           <button onClick={stop} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
@@ -20,7 +20,7 @@ export default function AutoGeneratorPage() {
           </button>
         )}
         <button onClick={reset} disabled={isRunning}
-          className="rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-50">
+          className="rounded-md bg-gray-100 dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
           Reset Counter
         </button>
       </div>

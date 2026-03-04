@@ -13,7 +13,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900">Settings</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h2>
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <ConfigForm config={config} onUpdate={updateConfig} />
         <TimeControlPanel time={time} onUpdate={updateTime} />

@@ -13,36 +13,36 @@ interface Props {
 
 export default function ListingRow({ listing, onClick, onForceStatus, onExtendTime, onSniperBid }: Props) {
   return (
-    <tr className="hover:bg-gray-50 cursor-pointer" onClick={onClick}>
-      <td className="px-4 py-3 text-sm font-medium text-gray-900">{listing.domainName}</td>
+    <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" onClick={onClick}>
+      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{listing.domainName}</td>
       <td className="px-4 py-3"><ListingStatusBadge status={listing.listingStatus} /></td>
       <td className="px-4 py-3"><CountdownTimer endTime={listing.endTime} /></td>
       <td className="px-4 py-3 text-sm"><PriceDisplay micros={listing.currentPriceUsd} /></td>
       <td className="px-4 py-3 text-sm">
         {listing.bidsCount > 0
           ? <PriceDisplay micros={Math.max(...listing.bidHistory.map((b) => b.bidAmountUsd))} />
-          : <span className="text-gray-400">-</span>
+          : <span className="text-gray-400 dark:text-gray-500">-</span>
         }
       </td>
-      <td className="px-4 py-3 text-sm text-gray-500">{listing.bidsCount}</td>
-      <td className="px-4 py-3 text-sm text-gray-500">{listing.biddersCount}</td>
+      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{listing.bidsCount}</td>
+      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{listing.biddersCount}</td>
       <td className="px-4 py-3">
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onForceStatus(listing)}
-            className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
+            className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             Status
           </button>
           <button
             onClick={() => onExtendTime(listing)}
-            className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
+            className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             Extend
           </button>
           <button
             onClick={() => onSniperBid(listing)}
-            className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
+            className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             Bid
           </button>

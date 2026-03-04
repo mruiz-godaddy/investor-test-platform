@@ -80,12 +80,12 @@ export default function QuickCreateControl(props: Props) {
   if (props.variant === 'expanded') {
     const { onSetup, isPending } = props;
     return (
-      <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 py-12 px-6">
-        <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-950 py-12 px-6">
+        <svg className="h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
-        <h3 className="text-lg font-semibold text-gray-900">No biddings yet</h3>
-        <p className="text-sm text-gray-500 text-center max-w-md">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No biddings yet</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
           Set up the system with 8 shoppers (3 sellers + 5 buyers) and 26 auctions (A-Z),
           each with a unique domain and staggered end times from 5 to 30 minutes.
         </p>
@@ -97,7 +97,7 @@ export default function QuickCreateControl(props: Props) {
         >
           {isPending ? 'Setting up...' : 'Setup System'}
         </button>
-        <p className="text-xs text-gray-400">8 shoppers + 26 listings (A = 5 min ... Z = 30 min)</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">8 shoppers + 26 listings (A = 5 min ... Z = 30 min)</p>
       </div>
     );
   }
@@ -119,7 +119,7 @@ export default function QuickCreateControl(props: Props) {
         min={minVal}
         value={amount}
         onChange={(e) => setAmount(Math.max(minVal, Number(e.target.value)))}
-        className="w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm tabular-nums"
+        className="w-20 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm tabular-nums"
       />
       <select
         value={unit}
@@ -128,7 +128,7 @@ export default function QuickCreateControl(props: Props) {
           setUnit(next);
           setAmount(Math.max(UNIT_MIN[next], amount));
         }}
-        className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+        className="rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm"
       >
         <option value="seconds">sec</option>
         <option value="minutes">min</option>
