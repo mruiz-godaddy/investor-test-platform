@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppLayout from './presentation/layouts/AppLayout';
-import DashboardPage from './presentation/pages/DashboardPage';
+import AuctionsPage from './presentation/pages/AuctionsPage';
 import ListingsPage from './presentation/pages/ListingsPage';
 import ListingDetailPage from './presentation/pages/ListingDetailPage';
 import ShoppersPage from './presentation/pages/ShoppersPage';
@@ -26,7 +26,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+            <Route path={ROUTES.AUCTIONS} element={<AuctionsPage />} />
             <Route path={ROUTES.LISTINGS} element={<ListingsPage />} />
             <Route path={ROUTES.LISTING_DETAIL} element={<ListingDetailPage />} />
             <Route path={ROUTES.SHOPPERS} element={<ShoppersPage />} />

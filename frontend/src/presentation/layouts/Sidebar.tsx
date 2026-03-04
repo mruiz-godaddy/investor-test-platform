@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../router/routes';
 
 const navItems = [
-  { to: ROUTES.DASHBOARD, label: 'Dashboard' },
+  { to: ROUTES.AUCTIONS, label: 'Auctions' },
   { to: ROUTES.LISTINGS, label: 'Listings' },
   { to: ROUTES.SHOPPERS, label: 'Shoppers' },
   { to: ROUTES.SCENARIOS, label: 'Scenarios' },
@@ -14,8 +14,8 @@ export default function Sidebar() {
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-4 py-4">
-        <h1 className="text-lg font-bold text-gray-900">Mock Auction</h1>
-        <p className="text-xs text-gray-500">Admin Dashboard</p>
+        <h1 className="text-lg font-bold text-gray-900">Investor Test Server</h1>
+        <p className="text-xs text-gray-500">Admin Panel</p>
       </div>
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navItems.map((item) => (

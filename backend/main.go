@@ -153,7 +153,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Mock auction server starting on :%d", *port)
+		log.Printf("Investor Test Server starting on :%d", *port)
 		if *auctionUpstream != "" {
 			log.Printf("Reverse proxy: unmatched routes → %s", *auctionUpstream)
 		} else {

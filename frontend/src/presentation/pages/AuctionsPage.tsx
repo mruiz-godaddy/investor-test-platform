@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardViewModel } from '../hooks/useDashboardViewModel';
+import { useAuctionsViewModel } from '../hooks/useAuctionsViewModel';
 import { useListingsViewModel } from '../hooks/useListingsViewModel';
 import ListingsTable from '../components/listings/ListingsTable';
 import QuickCreateControl from '../components/listings/QuickCreateControl';
@@ -10,9 +10,9 @@ import SniperBidDialog from '../components/listings/SniperBidDialog';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import type { AdminListing } from '../../domain/entities/Listing';
 
-export default function DashboardPage() {
+export default function AuctionsPage() {
   const navigate = useNavigate();
-  const { listings, isLoading, totalCount, openCount, soldCount, closedCount } = useDashboardViewModel();
+  const { listings, isLoading, totalCount, openCount, soldCount, closedCount } = useAuctionsViewModel();
   const { shoppers, createListing, setupSystem, isSettingUp, isCreating, updateStatus, updateEndTime, placeSniperBid } = useListingsViewModel();
 
   const [statusTarget, setStatusTarget] = useState<AdminListing | null>(null);
@@ -33,7 +33,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+        <h2 className="text-xl font-bold text-gray-900">Auctions</h2>
         {hasListings && (
           <QuickCreateControl onSubmit={createListing} isPending={isCreating} />
         )}

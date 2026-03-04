@@ -3,7 +3,7 @@ import { useUseCase } from './useDiContainer';
 import { GetListingsUseCase } from '../../domain/usecases/GetListingsUseCase';
 import { LISTINGS_POLL_INTERVAL_MS } from '../../lib/constants';
 
-export function useDashboardViewModel() {
+export function useAuctionsViewModel() {
   const getListings = useUseCase(GetListingsUseCase);
 
   const { data: listings = [], isLoading, error } = useQuery({

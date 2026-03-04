@@ -1,5 +1,5 @@
 export const ROUTES = {
-  DASHBOARD: '/',
+  AUCTIONS: '/',
   LISTINGS: '/listings',
   LISTING_DETAIL: '/listings/:id',
   SHOPPERS: '/shoppers',
