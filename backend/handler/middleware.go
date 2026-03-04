@@ -34,8 +34,13 @@ func ResolveShopper(r *http.Request, s *store.Store) (*model.Shopper, error) {
 }
 
 func extractShopperFromJWT(authHeader string) (string, error) {
-	// Strip "Bearer " prefix
-	token := strings.TrimPrefix(authHeader, "Bearer ")
+	// Strip "Bearer " or "sso-jwt " prefix
+	token := authHeader
+	if strings.HasPrefix(token, "Bearer ") {
+		token = strings.TrimPrefix(token, "Bearer ")
+	} else if strings.HasPrefix(token, "sso-jwt ") {
+		token = strings.TrimPrefix(token, "sso-jwt ")
+	}
 	// Split into parts
 	parts := strings.Split(token, ".")
 	if len(parts) < 2 {

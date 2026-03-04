@@ -30,6 +30,7 @@ func main() {
 	autoFinalize := flag.Bool("auto-finalize", true, "Auto-finalize expired listings")
 	seed := flag.Bool("seed", true, "Seed default shoppers")
 	upstream := flag.String("upstream", "", "Upstream API host for reverse proxy (e.g. https://api.test-godaddy.com)")
+	findUpstream := flag.String("find-upstream", "", "Upstream Find API host for search proxy (e.g. https://entourage.prod.aws.godaddy.com)")
 	flag.Parse()
 
 	// Init database
@@ -88,10 +89,14 @@ func main() {
 	})
 
 	// App-facing endpoints
-	appH := handler.NewAppHandler(s, cfg, eng)
+	appH := handler.NewAppHandler(s, cfg, eng, *upstream, *findUpstream)
 	r.HandleFunc("/v1/aftermarket/domains/listings/{listingId}", appH.GetListing).Methods("GET")
 	r.HandleFunc("/v1/aftermarket/domains/listings/{listingId}/bids", appH.PlaceBid).Methods("POST")
 	r.HandleFunc("/v1/aftermarket/domains/bidding", appH.GetBiddingListings).Methods("GET")
+	r.HandleFunc("/v1/aftermarket/domains/won", appH.GetWonListings).Methods("GET")
+	r.HandleFunc("/v1/aftermarket/domains/didNotWin", appH.GetLostListings).Methods("GET")
+	r.HandleFunc("/v4/aftermarket/find/auction/recommend", appH.SearchListings).Methods("GET")
+	r.HandleFunc("/v1/aftermarket/domains/member/authorized", appH.GetMemberAuthorized).Methods("GET")
 
 	// Admin endpoints
 	adminH := handler.NewAdminHandler(s, cfg, eng, sc)

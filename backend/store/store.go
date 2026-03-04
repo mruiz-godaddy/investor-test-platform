@@ -517,6 +517,80 @@ func (s *Store) ImportBid(b model.Bid) error {
 	return err
 }
 
+// GetWonListingsForShopper returns listings where status=SOLD, shopper is the highest bidder, and shopper has bids.
+func (s *Store) GetWonListingsForShopper(shopperID string) ([]model.Listing, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT l.* FROM listings l
+		 WHERE l.listing_status = 'SOLD'
+		   AND l.highest_bidder_shopper = ?
+		   AND EXISTS (SELECT 1 FROM bids b WHERE b.listing_id = l.listing_id AND b.shopper_id = ? AND b.bid_status = 'ACTIVE')
+		 ORDER BY l.listing_id`,
+		shopperID, shopperID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listings []model.Listing
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		listings = append(listings, *l)
+	}
+	return listings, rows.Err()
+}
+
+// GetLostListingsForShopper returns listings where status IN (SOLD,CLOSED), shopper has bids, but shopper is NOT the highest bidder.
+func (s *Store) GetLostListingsForShopper(shopperID string) ([]model.Listing, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT l.* FROM listings l
+		 WHERE l.listing_status IN ('SOLD', 'CLOSED')
+		   AND (l.highest_bidder_shopper IS NULL OR l.highest_bidder_shopper != ?)
+		   AND EXISTS (SELECT 1 FROM bids b WHERE b.listing_id = l.listing_id AND b.shopper_id = ? AND b.bid_status = 'ACTIVE')
+		 ORDER BY l.listing_id`,
+		shopperID, shopperID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listings []model.Listing
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		listings = append(listings, *l)
+	}
+	return listings, rows.Err()
+}
+
+// SearchListingsByDomain returns OPEN listings where domain_name matches query (case-insensitive LIKE).
+func (s *Store) SearchListingsByDomain(query string) ([]model.Listing, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT * FROM listings WHERE listing_status = 'OPEN' AND LOWER(domain_name) LIKE LOWER(?) ORDER BY listing_id`,
+		"%"+query+"%",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listings []model.Listing
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		listings = append(listings, *l)
+	}
+	return listings, rows.Err()
+}
+
 // WipeAll drops all tables and recreates them without seeding.
 func (s *Store) WipeAll() {
 	s.DB.DropAll()

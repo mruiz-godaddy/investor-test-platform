@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,13 +19,15 @@ import (
 )
 
 type AppHandler struct {
-	Store  *store.Store
-	Config *config.Config
-	Engine *bidding.Engine
+	Store         *store.Store
+	Config        *config.Config
+	Engine        *bidding.Engine
+	UpstreamURL   string
+	FindUpstream  string
 }
 
-func NewAppHandler(s *store.Store, cfg *config.Config, eng *bidding.Engine) *AppHandler {
-	return &AppHandler{Store: s, Config: cfg, Engine: eng}
+func NewAppHandler(s *store.Store, cfg *config.Config, eng *bidding.Engine, upstreamURL, findUpstream string) *AppHandler {
+	return &AppHandler{Store: s, Config: cfg, Engine: eng, UpstreamURL: upstreamURL, FindUpstream: findUpstream}
 }
 
 // GetListing handles GET /v1/aftermarket/domains/listings/{listingId}
@@ -77,6 +80,14 @@ func (h *AppHandler) GetBiddingListings(w http.ResponseWriter, r *http.Request) 
 	}
 	if result == nil {
 		result = []map[string]interface{}{}
+	}
+
+	// Merge with upstream if configured
+	if h.UpstreamURL != "" {
+		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/bidding", r)
+		if err == nil && upstreamItems != nil {
+			result = mergeListings(result, upstreamItems)
+		}
 	}
 
 	WriteJSON(w, 200, map[string]interface{}{
@@ -134,6 +145,261 @@ func (h *AppHandler) PlaceBid(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, 200, result)
 }
 
+// GetWonListings handles GET /v1/aftermarket/domains/won
+func (h *AppHandler) GetWonListings(w http.ResponseWriter, r *http.Request) {
+	shopper, err := ResolveShopper(r, h.Store)
+	if err != nil {
+		WriteError(w, "MISSING_SHOPPER", err.Error(), 400)
+		return
+	}
+
+	listings, _ := h.Store.GetWonListingsForShopper(shopper.ShopperID)
+	var result []map[string]interface{}
+	for _, l := range listings {
+		result = append(result, h.buildWonListingJSON(&l))
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+
+	// Merge with upstream if configured
+	if h.UpstreamURL != "" {
+		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/won", r)
+		if err == nil && upstreamItems != nil {
+			result = mergeListings(result, upstreamItems)
+		}
+	}
+
+	WriteJSON(w, 200, map[string]interface{}{
+		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
+		"viewType":        "SNAPSHOT",
+		"listings":        result,
+	})
+}
+
+// GetLostListings handles GET /v1/aftermarket/domains/didNotWin
+func (h *AppHandler) GetLostListings(w http.ResponseWriter, r *http.Request) {
+	shopper, err := ResolveShopper(r, h.Store)
+	if err != nil {
+		WriteError(w, "MISSING_SHOPPER", err.Error(), 400)
+		return
+	}
+
+	listings, _ := h.Store.GetLostListingsForShopper(shopper.ShopperID)
+	var result []map[string]interface{}
+	for _, l := range listings {
+		result = append(result, h.buildLostListingJSON(&l))
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+
+	// Merge with upstream if configured
+	if h.UpstreamURL != "" {
+		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/didNotWin", r)
+		if err == nil && upstreamItems != nil {
+			result = mergeListings(result, upstreamItems)
+		}
+	}
+
+	WriteJSON(w, 200, map[string]interface{}{
+		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
+		"viewType":        "SNAPSHOT",
+		"listings":        result,
+	})
+}
+
+// SearchListings handles GET /v4/aftermarket/find/auction/recommend
+func (h *AppHandler) SearchListings(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("query")
+	if query == "" {
+		WriteJSON(w, 200, map[string]interface{}{"results": []interface{}{}})
+		return
+	}
+
+	listings, _ := h.Store.SearchListingsByDomain(query)
+	var result []map[string]interface{}
+	for _, l := range listings {
+		result = append(result, h.buildSearchResultJSON(&l))
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+
+	// Merge with find-upstream if configured
+	if h.FindUpstream != "" {
+		upstreamItems, err := fetchUpstreamSearchResults(h.FindUpstream, r)
+		if err == nil && upstreamItems != nil {
+			result = mergeListings(result, upstreamItems)
+		}
+	}
+
+	WriteJSON(w, 200, map[string]interface{}{
+		"results": result,
+	})
+}
+
+// GetMemberAuthorized handles GET /v1/aftermarket/domains/member/authorized
+// Always returns ACTIVE membership so the app allows bidding.
+func (h *AppHandler) GetMemberAuthorized(w http.ResponseWriter, r *http.Request) {
+	WriteJSON(w, 200, map[string]interface{}{
+		"id":               0,
+		"membershipStatus": "ACTIVE",
+	})
+}
+
+func (h *AppHandler) buildWonListingJSON(l *model.Listing) map[string]interface{} {
+	salePrice := []map[string]interface{}{}
+	if l.SalePriceUsd != nil && *l.SalePriceUsd > 0 {
+		salePrice = priceArray(*l.SalePriceUsd)
+	}
+
+	return map[string]interface{}{
+		"listingId":         l.ListingID,
+		"domainName":        l.DomainName,
+		"listingStatus":     l.ListingStatus,
+		"listingType":       l.ListingType,
+		"auctionTypeId":     l.AuctionTypeID,
+		"endTime":           toFractionalISO(l.EndTime),
+		"askingPrice":       priceArray(l.AskingPriceUsd),
+		"salePrice":         salePrice,
+		"bidsOrOffersCount": l.BidsCount,
+		"isReserveMet":      l.IsReserveMet,
+	}
+}
+
+func (h *AppHandler) buildLostListingJSON(l *model.Listing) map[string]interface{} {
+	salePrice := []map[string]interface{}{}
+	if l.SalePriceUsd != nil && *l.SalePriceUsd > 0 {
+		salePrice = priceArray(*l.SalePriceUsd)
+	}
+
+	return map[string]interface{}{
+		"listingId":         l.ListingID,
+		"domainName":        l.DomainName,
+		"listingType":       l.ListingType,
+		"endTime":           toFractionalISO(l.EndTime),
+		"askingPrice":       priceArray(l.AskingPriceUsd),
+		"salePrice":         salePrice,
+		"bidsOrOffersCount": l.BidsCount,
+		"isReserveMet":      l.IsReserveMet,
+	}
+}
+
+func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interface{} {
+	askingPrice := float64(l.AskingPriceUsd) / 1_000_000
+	currentBid := float64(l.CurrentPriceUsd) / 1_000_000
+
+	return map[string]interface{}{
+		// IDs
+		"auction_id": l.ListingID,
+		"fqdn":       l.DomainName,
+		"fqdn_from_feed": l.DomainName,
+
+		// Type & status (integers expected by Android Gson models)
+		"auction_type":   l.AuctionTypeID,
+		"auction_status": listingStatusToInt(l.ListingStatus),
+		"active":         l.ListingStatus == model.StatusOpen,
+
+		// Prices (doubles)
+		"auction_price":     askingPrice,
+		"auction_price_usd": askingPrice,
+		"current_bid_price":     currentBid,
+		"current_bid_price_usd": currentBid,
+		"start_bid_amount":     askingPrice,
+		"start_bid_amount_usd": askingPrice,
+		"buy_it_now_amount":     0,
+		"buy_it_now_amount_usd": 0,
+		"reserved_price_amount":     float64(l.ReservePriceUsd) / 1_000_000,
+		"reserved_price_amount_usd": float64(l.ReservePriceUsd) / 1_000_000,
+		"valuation_price":     0,
+		"valuation_price_usd": 0,
+
+		// Display strings (required by Android — Gson sets missing Strings to null → NPE)
+		"auction_price_display":         formatUSD(askingPrice),
+		"auction_price_display_usd":     formatUSD(askingPrice),
+		"current_bid_price_display":     formatUSD(currentBid),
+		"current_bid_price_display_usd": formatUSD(currentBid),
+		"start_bid_amount_display":      formatUSD(askingPrice),
+		"start_bid_amount_display_usd":  formatUSD(askingPrice),
+		"buy_it_now_amount_display":     "",
+		"buy_it_now_amount_display_usd": "",
+		"reserved_price_amount_display":     "",
+		"reserved_price_amount_display_usd": "",
+		"valuation_price_display":     "",
+		"valuation_price_display_usd": "",
+
+		// Times
+		"end_time":           l.EndTime,
+		"auction_end_time":   formatSpaceTime(l.EndTime),
+		"auction_start_time": l.StartTime,
+
+		// Counts & flags
+		"bids":              l.BidsCount,
+		"monthly_traffic":   0,
+		"reserved_price_flag":  l.ReservePriceUsd > 0,
+		"buy_it_now_flag":      false,
+		"bid_accepted_flag":    false,
+		"is_website_included":  false,
+		"feature_listing_flag": false,
+		"include_in_search_flag":                true,
+		"display_result_in_category_list_flag":  true,
+		"sub_category_feature_listing_flag":     false,
+		"add_i_category_listing_flag":           false,
+		"on_sale_percent": 0,
+		"appraised_value": 0,
+
+		// Misc
+		"data_source":      "mock",
+		"item_description": "",
+		"vendor_id":        0,
+		"isidn":            false,
+		"auction_adult":    false,
+	}
+}
+
+// toFractionalISO ensures an ISO timestamp has microsecond fractional seconds
+// (e.g. "2026-03-04T03:01:37Z" → "2026-03-04T03:01:37.000000Z").
+// BidAdapter on Android parses endTime with pattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'".
+func toFractionalISO(iso string) string {
+	t, err := time.Parse(time.RFC3339, iso)
+	if err != nil {
+		return iso
+	}
+	return t.UTC().Format("2006-01-02T15:04:05.000000Z")
+}
+
+// formatUSD formats a dollar amount as "$X.XX" or "" if zero.
+func formatUSD(amount float64) string {
+	if amount <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("$%.2f", amount)
+}
+
+// formatSpaceTime converts ISO "2006-01-02T15:04:05Z" to "2006-01-02 15:04:05" (Find API format).
+func formatSpaceTime(iso string) string {
+	t, err := time.Parse(time.RFC3339, iso)
+	if err != nil {
+		return iso
+	}
+	return t.Format("2006-01-02 15:04:05")
+}
+
+// listingStatusToInt maps internal status strings to the numeric codes the Find API uses.
+func listingStatusToInt(status string) int {
+	switch status {
+	case model.StatusOpen:
+		return 4
+	case model.StatusClosed:
+		return 5
+	case model.StatusSold:
+		return 6
+	default:
+		return 4
+	}
+}
+
 func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Shopper) map[string]interface{} {
 	// Fetch bids for bid history
 	bids, _ := h.Store.GetActiveBidsForListing(listing.ListingID)
@@ -148,15 +414,15 @@ func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Sho
 		}
 		bidHistory = append(bidHistory, map[string]interface{}{
 			"bidAmount":         priceArray(bid.BidAmountUsd),
-			"bidDate":           bid.CreatedAt,
-			"bidExpirationDate": listing.EndTime,
+			"bidDate":           toFractionalISO(bid.CreatedAt),
+			"bidExpirationDate": toFractionalISO(listing.EndTime),
 			"bidder":            memberID,
 			"comment":           "",
 		})
 	}
 
 	// Compute memberBiddingStatus
-	memberBiddingStatus := ""
+	memberBiddingStatus := "NOT_BIDDING"
 	if shopper != nil {
 		hasBid, _ := h.Store.HasShopperBidOnListing(shopper.ShopperID, listing.ListingID)
 		if hasBid {
@@ -193,10 +459,10 @@ func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Sho
 		"listingStatus":         listing.ListingStatus,
 		"listingType":           listing.ListingType,
 		"auctionTypeId":         listing.AuctionTypeID,
-		"startTime":             listing.StartTime,
-		"endTime":               listing.EndTime,
+		"startTime":             toFractionalISO(listing.StartTime),
+		"endTime":               toFractionalISO(listing.EndTime),
 		"lastUpdatedTime":       lifecycle.Now().Format(time.RFC3339),
-		"listDate":              listing.StartTime,
+		"listDate":              toFractionalISO(listing.StartTime),
 		"description":           "",
 		"domainId":              0,
 		"domainCreateDate":      "",

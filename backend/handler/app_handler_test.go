@@ -24,7 +24,7 @@ func setupAppHandlerTest(t *testing.T) (*AppHandler, *store.Store) {
 	s := store.New(database)
 	cfg := config.New()
 	eng := bidding.NewEngine(s)
-	return NewAppHandler(s, cfg, eng), s
+	return NewAppHandler(s, cfg, eng, "", ""), s
 }
 
 func TestPlaceBidHandler_Success(t *testing.T) {
