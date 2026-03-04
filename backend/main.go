@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -25,12 +26,22 @@ import (
 )
 
 func main() {
+	// Session logging — write to logs/<timestamp>.log + stdout
+	exe, _ := os.Executable()
+	logsDir := filepath.Join(filepath.Dir(exe), "logs")
+	// Fallback: if running with `go run`, use working directory
+	if _, err := os.Stat(logsDir); err != nil {
+		logsDir = "logs"
+	}
+	closeLog := handler.SetupSessionLog(logsDir)
+	defer closeLog()
+
 	port := flag.Int("port", 8080, "HTTP port")
 	dbPath := flag.String("db", "biddings.db", "SQLite database path")
 	autoFinalize := flag.Bool("auto-finalize", true, "Auto-finalize expired listings")
 	seed := flag.Bool("seed", true, "Seed default shoppers")
-	upstream := flag.String("upstream", "", "Upstream API host for reverse proxy (e.g. https://api.test-godaddy.com)")
-	findUpstream := flag.String("find-upstream", "", "Upstream Find API host for search proxy (e.g. https://entourage.prod.aws.godaddy.com)")
+	auctionUpstream := flag.String("auction-upstream", "", "Upstream auction API (e.g. https://auctions.api.int.test-godaddy.com)")
+	findUpstream := flag.String("find-upstream", "", "Upstream Find API for search (e.g. https://find.api.test.aws.godaddy.com)")
 	flag.Parse()
 
 	// Init database
@@ -78,18 +89,11 @@ func main() {
 		})
 	})
 
-	// Request logging middleware
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			start := time.Now()
-			log.Printf("%s %s", req.Method, req.URL.Path)
-			next.ServeHTTP(w, req)
-			_ = start
-		})
-	})
+	// Request/response logging middleware (writes to session log file + stdout)
+	r.Use(handler.RequestResponseLogger)
 
 	// App-facing endpoints
-	appH := handler.NewAppHandler(s, cfg, eng, *upstream, *findUpstream)
+	appH := handler.NewAppHandler(s, cfg, eng, *auctionUpstream, *findUpstream)
 	r.HandleFunc("/v1/aftermarket/domains/listings/{listingId}", appH.GetListing).Methods("GET")
 	r.HandleFunc("/v1/aftermarket/domains/listings/{listingId}/bids", appH.PlaceBid).Methods("POST")
 	r.HandleFunc("/v1/aftermarket/domains/bidding", appH.GetBiddingListings).Methods("GET")
@@ -121,8 +125,8 @@ func main() {
 	r.HandleFunc("/admin/time", adminH.GetTime).Methods("GET")
 
 	// Reverse proxy catch-all (registered LAST)
-	if *upstream != "" {
-		upstreamURL, err := url.Parse(*upstream)
+	if *auctionUpstream != "" {
+		upstreamURL, err := url.Parse(*auctionUpstream)
 		if err != nil {
 			log.Fatalf("Invalid upstream URL: %v", err)
 		}
@@ -134,7 +138,7 @@ func main() {
 			log.Printf("PROXY %s %s → %s (%dms)",
 				req.Method, req.URL.Path, upstreamURL.Host, time.Since(start).Milliseconds())
 		})
-		log.Printf("Reverse proxy enabled → %s", *upstream)
+		log.Printf("Reverse proxy enabled → %s", *auctionUpstream)
 	} else {
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -150,8 +154,8 @@ func main() {
 
 	go func() {
 		log.Printf("Mock auction server starting on :%d", *port)
-		if *upstream != "" {
-			log.Printf("Reverse proxy: unmatched routes → %s", *upstream)
+		if *auctionUpstream != "" {
+			log.Printf("Reverse proxy: unmatched routes → %s", *auctionUpstream)
 		} else {
 			log.Printf("No upstream configured: unmatched routes → 404")
 		}

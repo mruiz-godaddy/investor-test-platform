@@ -15,6 +15,8 @@ func forwardRequest(upstreamURL, path string, originalReq *http.Request) (*http.
 		fullURL += "?" + originalReq.URL.RawQuery
 	}
 
+	log.Printf("UPSTREAM → %s", fullURL)
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
@@ -88,6 +90,33 @@ func fetchUpstreamSearchResults(findUpstream string, req *http.Request) ([]map[s
 	}
 
 	return wrapper.Results, nil
+}
+
+// proxyToUpstream forwards the original request to upstream and copies the full response
+// (status, headers, body) back to the client. Returns true if it handled the response.
+func proxyToUpstream(upstreamURL string, w http.ResponseWriter, r *http.Request) bool {
+	if upstreamURL == "" {
+		return false
+	}
+
+	resp, err := forwardRequest(upstreamURL, r.URL.Path, r)
+	if err != nil {
+		log.Printf("Upstream proxy %s%s failed: %v", upstreamURL, r.URL.Path, err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Copy upstream response headers
+	for k, vals := range resp.Header {
+		for _, v := range vals {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+
+	log.Printf("UPSTREAM ← %d %s%s", resp.StatusCode, upstreamURL, r.URL.Path)
+	return true
 }
 
 // mergeListings prepends mock listings, deduplicating by listingId (mock wins).

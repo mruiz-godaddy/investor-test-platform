@@ -1,5 +1,6 @@
 # ---------- Backend (Go) ----------
 backend/server
+backend/logs/
 *.db
 *.db-wal
 *.db-shm

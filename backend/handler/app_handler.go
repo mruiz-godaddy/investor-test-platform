@@ -22,12 +22,12 @@ type AppHandler struct {
 	Store         *store.Store
 	Config        *config.Config
 	Engine        *bidding.Engine
-	UpstreamURL   string
+	AuctionUpstream   string
 	FindUpstream  string
 }
 
-func NewAppHandler(s *store.Store, cfg *config.Config, eng *bidding.Engine, upstreamURL, findUpstream string) *AppHandler {
-	return &AppHandler{Store: s, Config: cfg, Engine: eng, UpstreamURL: upstreamURL, FindUpstream: findUpstream}
+func NewAppHandler(s *store.Store, cfg *config.Config, eng *bidding.Engine, auctionUpstream, findUpstream string) *AppHandler {
+	return &AppHandler{Store: s, Config: cfg, Engine: eng, AuctionUpstream: auctionUpstream, FindUpstream: findUpstream}
 }
 
 // GetListing handles GET /v1/aftermarket/domains/listings/{listingId}
@@ -52,6 +52,9 @@ func (h *AppHandler) GetListing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if listing == nil {
+		if proxyToUpstream(h.AuctionUpstream, w, r) {
+			return
+		}
 		WriteError(w, "LISTING_NOT_FOUND", "Listing not found", 404)
 		return
 	}
@@ -78,18 +81,25 @@ func (h *AppHandler) GetBiddingListings(w http.ResponseWriter, r *http.Request) 
 			result = append(result, h.buildListingJSON(&listing, shopper))
 		}
 	}
-	if result == nil {
-		result = []map[string]interface{}{}
+
+	// No local results → forward entirely to upstream
+	if len(result) == 0 && h.AuctionUpstream != "" {
+		if proxyToUpstream(h.AuctionUpstream, w, r) {
+			return
+		}
 	}
 
-	// Merge with upstream if configured
-	if h.UpstreamURL != "" {
-		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/bidding", r)
+	// Local results exist → merge with upstream (local wins on dupes)
+	if len(result) > 0 && h.AuctionUpstream != "" {
+		upstreamItems, err := fetchUpstreamListings(h.AuctionUpstream, "/v1/aftermarket/domains/bidding", r)
 		if err == nil && upstreamItems != nil {
 			result = mergeListings(result, upstreamItems)
 		}
 	}
 
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
 	WriteJSON(w, 200, map[string]interface{}{
 		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
 		"viewType":        "SNAPSHOT",
@@ -158,18 +168,25 @@ func (h *AppHandler) GetWonListings(w http.ResponseWriter, r *http.Request) {
 	for _, l := range listings {
 		result = append(result, h.buildWonListingJSON(&l))
 	}
-	if result == nil {
-		result = []map[string]interface{}{}
+
+	// No local results → forward entirely to upstream
+	if len(result) == 0 && h.AuctionUpstream != "" {
+		if proxyToUpstream(h.AuctionUpstream, w, r) {
+			return
+		}
 	}
 
-	// Merge with upstream if configured
-	if h.UpstreamURL != "" {
-		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/won", r)
+	// Local results exist → merge with upstream (local wins on dupes)
+	if len(result) > 0 && h.AuctionUpstream != "" {
+		upstreamItems, err := fetchUpstreamListings(h.AuctionUpstream, "/v1/aftermarket/domains/won", r)
 		if err == nil && upstreamItems != nil {
 			result = mergeListings(result, upstreamItems)
 		}
 	}
 
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
 	WriteJSON(w, 200, map[string]interface{}{
 		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
 		"viewType":        "SNAPSHOT",
@@ -190,18 +207,25 @@ func (h *AppHandler) GetLostListings(w http.ResponseWriter, r *http.Request) {
 	for _, l := range listings {
 		result = append(result, h.buildLostListingJSON(&l))
 	}
-	if result == nil {
-		result = []map[string]interface{}{}
+
+	// No local results → forward entirely to upstream
+	if len(result) == 0 && h.AuctionUpstream != "" {
+		if proxyToUpstream(h.AuctionUpstream, w, r) {
+			return
+		}
 	}
 
-	// Merge with upstream if configured
-	if h.UpstreamURL != "" {
-		upstreamItems, err := fetchUpstreamListings(h.UpstreamURL, "/v1/aftermarket/domains/didNotWin", r)
+	// Local results exist → merge with upstream (local wins on dupes)
+	if len(result) > 0 && h.AuctionUpstream != "" {
+		upstreamItems, err := fetchUpstreamListings(h.AuctionUpstream, "/v1/aftermarket/domains/didNotWin", r)
 		if err == nil && upstreamItems != nil {
 			result = mergeListings(result, upstreamItems)
 		}
 	}
 
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
 	WriteJSON(w, 200, map[string]interface{}{
 		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
 		"viewType":        "SNAPSHOT",
@@ -212,28 +236,34 @@ func (h *AppHandler) GetLostListings(w http.ResponseWriter, r *http.Request) {
 // SearchListings handles GET /v4/aftermarket/find/auction/recommend
 func (h *AppHandler) SearchListings(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
-	if query == "" {
-		WriteJSON(w, 200, map[string]interface{}{"results": []interface{}{}})
-		return
-	}
 
-	listings, _ := h.Store.SearchListingsByDomain(query)
+	// Only search local DB when there's an actual query
 	var result []map[string]interface{}
-	for _, l := range listings {
-		result = append(result, h.buildSearchResultJSON(&l))
-	}
-	if result == nil {
-		result = []map[string]interface{}{}
+	if query != "" {
+		listings, _ := h.Store.SearchListingsByDomain(query)
+		for _, l := range listings {
+			result = append(result, h.buildSearchResultJSON(&l))
+		}
 	}
 
-	// Merge with find-upstream if configured
-	if h.FindUpstream != "" {
+	// If no local results, try forwarding entirely to find-upstream
+	if len(result) == 0 && h.FindUpstream != "" {
+		if proxyToUpstream(h.FindUpstream, w, r) {
+			return
+		}
+	}
+
+	// If we have local results, merge with upstream (local wins on dupes)
+	if len(result) > 0 && h.FindUpstream != "" {
 		upstreamItems, err := fetchUpstreamSearchResults(h.FindUpstream, r)
 		if err == nil && upstreamItems != nil {
 			result = mergeListings(result, upstreamItems)
 		}
 	}
 
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
 	WriteJSON(w, 200, map[string]interface{}{
 		"results": result,
 	})
