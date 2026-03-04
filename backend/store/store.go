@@ -396,10 +396,10 @@ func (s *Store) SetHighBid(bidID string) error {
 }
 
 // GetHighestAuctionBid returns the highest ACTIVE AUCTION bid for a listing.
-// Tie-break: earliest created_at wins.
+// Tie-break: latest created_at wins (matches real auc-bidding behavior).
 func (s *Store) GetHighestAuctionBid(listingID int64) (*model.Bid, error) {
 	row := s.DB.Conn.QueryRow(
-		`SELECT * FROM bids WHERE listing_id = ? AND bid_type = 'AUCTION' AND bid_status = 'ACTIVE' ORDER BY bid_amount_usd DESC, created_at ASC LIMIT 1`,
+		`SELECT * FROM bids WHERE listing_id = ? AND bid_type = 'AUCTION' AND bid_status = 'ACTIVE' ORDER BY bid_amount_usd DESC, created_at DESC LIMIT 1`,
 		listingID,
 	)
 	b, err := scanBid(row)

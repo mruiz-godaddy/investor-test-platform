@@ -724,7 +724,7 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 			EndTime:          endTime,
 			AskingPriceUsd:   askingPrice,
 			ReservePriceUsd:  reservePrice,
-			SellerShopperID:  sellers[i%len(sellers)],
+			SellerShopperID:  pickRandom(sellers),
 			AutoExtEnabled:   autoExtEnabled,
 			AutoExtWindowSec: autoExtWindowSec,
 			AutoExtSeconds:   autoExtSeconds,

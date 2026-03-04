@@ -66,6 +66,7 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
                 { key: null, label: 'Status' },
                 { key: 'endTime' as SortKey, label: 'Countdown' },
                 { key: 'currentPriceUsd' as SortKey, label: 'Price' },
+                { key: null, label: 'High Bid' },
                 { key: 'bidsCount' as SortKey, label: 'Bids' },
                 { key: null, label: 'Bidders' },
                 { key: null, label: 'Actions' },

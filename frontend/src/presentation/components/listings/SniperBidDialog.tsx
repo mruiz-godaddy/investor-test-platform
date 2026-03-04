@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/react';
 import type { AdminListing } from '../../../domain/entities/Listing';
 import type { Shopper } from '../../../domain/entities/Shopper';
@@ -15,6 +15,13 @@ interface Props {
 export default function SniperBidDialog({ open, onClose, listing, shoppers, onSubmit }: Props) {
   const [shopperId, setShopperId] = useState(shoppers[0]?.shopperId ?? '');
   const [bidUsd, setBidUsd] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setBidUsd('');
+      setShopperId(shoppers[0]?.shopperId ?? '');
+    }
+  }, [open, shoppers]);
 
   if (!listing) return null;
 

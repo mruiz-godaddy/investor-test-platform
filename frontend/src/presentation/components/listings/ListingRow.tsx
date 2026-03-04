@@ -18,6 +18,12 @@ export default function ListingRow({ listing, onClick, onForceStatus, onExtendTi
       <td className="px-4 py-3"><ListingStatusBadge status={listing.listingStatus} /></td>
       <td className="px-4 py-3"><CountdownTimer endTime={listing.endTime} /></td>
       <td className="px-4 py-3 text-sm"><PriceDisplay micros={listing.currentPriceUsd} /></td>
+      <td className="px-4 py-3 text-sm">
+        {listing.bidsCount > 0
+          ? <PriceDisplay micros={Math.max(...listing.bidHistory.map((b) => b.bidAmountUsd))} />
+          : <span className="text-gray-400">-</span>
+        }
+      </td>
       <td className="px-4 py-3 text-sm text-gray-500">{listing.bidsCount}</td>
       <td className="px-4 py-3 text-sm text-gray-500">{listing.biddersCount}</td>
       <td className="px-4 py-3">

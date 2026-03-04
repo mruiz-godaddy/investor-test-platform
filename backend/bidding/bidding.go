@@ -1,7 +1,6 @@
 package bidding
 
 import (
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,11 +47,11 @@ func (e *BidError) Error() string {
 
 var (
 	ErrListingNotFound = &BidError{"LISTING_NOT_FOUND", "Listing not found", 404}
-	ErrListingClosed   = &BidError{"LISTING_CLOSED", "Listing is closed or expired", 422}
+	ErrListingNotOpen  = &BidError{"LISTING_NOT_OPEN", "Listing is not open", 422}
 	ErrBidderIsSeller  = &BidError{"BIDDER_IS_SELLER", "Seller cannot bid on their own listing", 422}
-	ErrBidTooLow       = &BidError{"BID_IS_LESS_THAN_STARTING_AMT", "That bid is less than the starting amount", 422}
-	ErrTosNotAccepted  = &BidError{"USER_MUST_AGREE_TO_TOS", "You must agree to the terms of service", 422}
-	ErrNonBiddableType = &BidError{"NON_BIDDABLE_TYPE", "This listing type does not support bidding", 422}
+	ErrBidTooLow       = &BidError{"BID_MIN_NOT_MET", "Bid minimum not met", 422}
+	ErrTosNotAccepted  = &BidError{"USER_TOS", "You must agree to the terms of service", 422}
+	ErrUnsupportedType = &BidError{"UNSUPPORTED_TYPE", "This listing type does not support bidding", 422}
 	ErrServerError     = &BidError{"SERVER_ERROR", "Internal server error", 500}
 )
 
@@ -98,23 +97,23 @@ func (e *Engine) PlaceBid(req BidRequest) (*BidResult, error) {
 		return nil, ErrListingNotFound
 	}
 
-	// Step 3: Listing is OPEN
+	// Step 3: Listing is OPEN and biddable type
 	if listing.ListingStatus != model.StatusOpen {
-		return nil, ErrListingClosed
+		return nil, ErrListingNotOpen
+	}
+	if !isBiddableAuctionType(listing.AuctionTypeID) {
+		return nil, ErrUnsupportedType
 	}
 
-	// Step 4: End time not passed
+	// Step 4: Auction timing — must be between start and end
+	now := lifecycle.Now()
+	startTime, _ := time.Parse(time.RFC3339, listing.StartTime)
 	endTime, _ := time.Parse(time.RFC3339, listing.EndTime)
-	if lifecycle.Now().After(endTime) {
-		return nil, ErrListingClosed
+	if now.Before(startTime) || now.After(endTime) {
+		return nil, ErrListingNotOpen
 	}
 
-	// Step 5: Not the seller
-	if req.ShopperID == listing.SellerShopperID {
-		return nil, ErrBidderIsSeller
-	}
-
-	// Step 6: Meets absolute floor (asking price)
+	// Step 5: Meets absolute floor (asking price)
 	// The proxy-aware minimum-vs-highest-bid check happens inside placeBidInternal.
 	if req.UsdBidAmount < listing.AskingPriceUsd {
 		return nil, ErrBidTooLow
@@ -137,7 +136,7 @@ func (e *Engine) PlaceSniperBid(listingID int64, shopperID string, bidAmountUsd 
 		return nil, ErrListingNotFound
 	}
 	if listing.ListingStatus != model.StatusOpen {
-		return nil, ErrListingClosed
+		return nil, ErrListingNotOpen
 	}
 
 	// Reject bids below the asking price floor
@@ -151,6 +150,11 @@ func (e *Engine) PlaceSniperBid(listingID int64, shopperID string, bidAmountUsd 
 // placeBidInternal contains the shared placement logic with proxy bidding support.
 // This mirrors the algorithm in auc-bidding/dao/dao.go PlaceBid.
 func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidAmountUsd int64) (*BidResult, error) {
+	// Seller cannot bid on own listing
+	if shopperID == listing.SellerShopperID {
+		return nil, ErrBidderIsSeller
+	}
+
 	newBidID := uuid.New().String()
 
 	// Phase 1: Gather state
@@ -377,7 +381,6 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 		return nil, ErrServerError
 	}
 
-	var lastAuctionBid *model.Bid
 	newAuctionCount := 0
 	for i := range bidsToPlace {
 		btp := &bidsToPlace[i]
@@ -391,19 +394,10 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 		}
 		if btp.bid.BidType == model.BidTypeAuction {
 			newAuctionCount++
-			b := btp.bid
-			lastAuctionBid = &b
 		}
 	}
 
-	// Set high bid on the final AUCTION bid
-	if lastAuctionBid != nil {
-		if err := e.Store.SetHighBid(lastAuctionBid.BidID); err != nil {
-			return nil, ErrServerError
-		}
-	}
-
-	// Determine final state from the actual highest AUCTION bid
+	// Determine the actual highest AUCTION bid from DB, then set isHighBid on it
 	finalHighest, err := e.Store.GetHighestAuctionBid(listing.ListingID)
 	if err != nil {
 		return nil, ErrServerError
@@ -414,6 +408,9 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 	if finalHighest != nil {
 		finalPrice = finalHighest.BidAmountUsd
 		highestBidderShopper = finalHighest.ShopperID
+		if err := e.Store.SetHighBid(finalHighest.BidID); err != nil {
+			return nil, ErrServerError
+		}
 	}
 
 	biddersCount, err := e.Store.GetDistinctBidderCount(listing.ListingID)
@@ -436,20 +433,7 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 		return nil, ErrServerError
 	}
 
-	// Phase 5: Auto-extension check
-	now := lifecycle.Now()
-	endTime, _ := time.Parse(time.RFC3339, listing.EndTime)
-	if shouldAutoExtend(listing, now) {
-		newEndTime := endTime.Add(time.Duration(listing.AutoExtSeconds) * time.Second)
-		if err := e.Store.SetAutoExtended(listing.ListingID, newEndTime.Format(time.RFC3339)); err != nil {
-			log.Printf("Failed to auto-extend listing %d: %v", listing.ListingID, err)
-		} else {
-			log.Printf("Auto-extended listing %d by %d seconds, new endTime: %s",
-				listing.ListingID, listing.AutoExtSeconds, newEndTime.Format(time.RFC3339))
-		}
-	}
-
-	// Phase 6: Return result
+	// Phase 5: Return result
 	return &BidResult{
 		ListingID:       listing.ListingID,
 		BidID:           newBidID,
@@ -459,6 +443,15 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 	}, nil
 }
 
+// biddableAuctionTypes matches the real auc-bidding service's supported types.
+var biddableAuctionTypes = map[int]bool{
+	13: true, 14: true, 16: true, 25: true, 37: true, 38: true,
+}
+
+func isBiddableAuctionType(auctionTypeID int) bool {
+	return biddableAuctionTypes[auctionTypeID]
+}
+
 func min64(a, b int64) int64 {
 	if a < b {
 		return a
@@ -466,14 +459,3 @@ func min64(a, b int64) int64 {
 	return b
 }
 
-func shouldAutoExtend(listing *model.Listing, now time.Time) bool {
-	if !listing.AutoExtEnabled {
-		return false
-	}
-	endTime, err := time.Parse(time.RFC3339, listing.EndTime)
-	if err != nil {
-		return false
-	}
-	windowStart := endTime.Add(-time.Duration(listing.AutoExtWindowSec) * time.Second)
-	return now.After(windowStart) && now.Before(endTime)
-}
