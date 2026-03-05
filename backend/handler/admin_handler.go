@@ -61,11 +61,9 @@ func (h *AdminHandler) buildAdminListingJSON(listing *model.Listing) map[string]
 		"askingPriceUsd":       listing.AskingPriceUsd,
 		"currentPriceUsd":      listing.CurrentPriceUsd,
 		"salePriceUsd":         listing.SalePriceUsd,
-		"reservePriceUsd":      listing.ReservePriceUsd,
 		"nextBidPriceUsd":      listing.NextBidPriceUsd,
 		"biddersCount":         listing.BiddersCount,
 		"bidsCount":            listing.BidsCount,
-		"isReserveMet":         listing.IsReserveMet,
 		"isAutoExtended":       listing.IsAutoExtended,
 		"sellerShopperId":      listing.SellerShopperID,
 		"highestBidderShopper": listing.HighestBidderShopper,
@@ -83,7 +81,6 @@ type createListingRequest struct {
 	DomainName       string `json:"domainName"`
 	SellerShopperID  string `json:"sellerShopperId"`
 	AskingPriceUsd   *int64 `json:"askingPriceUsd"`
-	ReservePriceUsd  *int64 `json:"reservePriceUsd"`
 	EndTime          string `json:"endTime"`
 	StartTime        string `json:"startTime"`
 	AuctionTypeID    *int   `json:"auctionTypeId"`
@@ -111,10 +108,6 @@ func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
 	askingPrice := int64(5_000_000)
 	if req.AskingPriceUsd != nil {
 		askingPrice = *req.AskingPriceUsd
-	}
-	reservePrice := int64(0)
-	if req.ReservePriceUsd != nil {
-		reservePrice = *req.ReservePriceUsd
 	}
 	startTime := now.Format(time.RFC3339)
 	if req.StartTime != "" {
@@ -153,7 +146,6 @@ func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
 		StartTime:        startTime,
 		EndTime:          endTime,
 		AskingPriceUsd:   askingPrice,
-		ReservePriceUsd:  reservePrice,
 		SellerShopperID:  req.SellerShopperID,
 		AutoExtEnabled:   autoExtEnabled,
 		AutoExtWindowSec: autoExtWindowSec,
@@ -706,11 +698,6 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 		endTime := now.Add(time.Duration(durationMin) * time.Minute).Format(time.RFC3339)
 
 		askingPrice := pickRandom(setupAskingPrices)
-		hasReserve := rand.Float64() > 0.7
-		reservePrice := int64(0)
-		if hasReserve {
-			reservePrice = askingPrice * int64(rand.Intn(4)+2)
-		}
 		autoExtEnabled := rand.Float64() > 0.3
 		autoExtWindowSec := 60
 		autoExtSeconds := []int{120, 300, 600}[rand.Intn(3)]
@@ -723,7 +710,6 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 			StartTime:        now.Format(time.RFC3339),
 			EndTime:          endTime,
 			AskingPriceUsd:   askingPrice,
-			ReservePriceUsd:  reservePrice,
 			SellerShopperID:  pickRandom(sellers),
 			AutoExtEnabled:   autoExtEnabled,
 			AutoExtWindowSec: autoExtWindowSec,

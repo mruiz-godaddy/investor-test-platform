@@ -11,7 +11,6 @@ export interface AutoGenConfig {
   autoExtEnabled: boolean;
   autoExtWindowSec: number;
   autoExtSeconds: number;
-  reservePriceMicros: number;
   endTimeOffsetMinutes: number;
 }
 
@@ -27,7 +26,6 @@ export class AutoGenerateListingsUseCase {
       domainName,
       sellerShopperId: config.sellerShopperId,
       askingPriceUsd,
-      reservePriceUsd: config.reservePriceMicros,
       autoExtEnabled: config.autoExtEnabled,
       autoExtWindowSec: config.autoExtWindowSec,
       autoExtSeconds: config.autoExtSeconds,

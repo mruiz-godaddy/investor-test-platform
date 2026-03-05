@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { AdminListing, ListingStatus } from '../../../domain/entities/Listing';
 import ListingRow from './ListingRow';
 import EmptyState from '../shared/EmptyState';
@@ -9,11 +9,12 @@ interface Props {
   onForceStatus: (listing: AdminListing) => void;
   onExtendTime: (listing: AdminListing) => void;
   onSniperBid: (listing: AdminListing) => void;
+  headerRight?: ReactNode;
 }
 
 type SortKey = 'domainName' | 'endTime' | 'currentPriceUsd' | 'bidsCount';
 
-export default function ListingsTable({ listings, onRowClick, onForceStatus, onExtendTime, onSniperBid }: Props) {
+export default function ListingsTable({ listings, onRowClick, onForceStatus, onExtendTime, onSniperBid, headerRight }: Props) {
   const [statusFilter, setStatusFilter] = useState<ListingStatus | 'ALL'>('ALL');
   const [sortKey, setSortKey] = useState<SortKey>('endTime');
   const [sortAsc, setSortAsc] = useState(true);
@@ -44,18 +45,26 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
 
   return (
     <div>
-      <div className="mb-3 flex gap-2">
-        {(['ALL', 'OPEN', 'SOLD', 'CLOSED'] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-md px-3 py-1 text-xs font-medium ${
-              statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-3 flex items-end justify-between">
+        <div className="flex gap-2">
+          {([
+            { key: 'ALL', label: 'ALL' },
+            { key: 'OPEN', label: 'OPEN' },
+            { key: 'SOLD', label: 'SOLD' },
+            { key: 'CLOSED', label: 'CLOSED' },
+          ] as const).map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setStatusFilter(s.key)}
+              className={`rounded-md px-3 py-1 text-xs font-medium ${
+                statusFilter === s.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {headerRight}
       </div>
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

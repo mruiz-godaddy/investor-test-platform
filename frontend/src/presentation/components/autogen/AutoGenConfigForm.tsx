@@ -49,12 +49,6 @@ export default function AutoGenConfigForm() {
             onChange={(e) => setConfig({ endTimeOffsetMinutes: Number(e.target.value) })}
             className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-lg disabled:bg-gray-100" />
         </div>
-        <div>
-          <label className="block text-base font-medium text-gray-700 dark:text-gray-200">Reserve Price ($)</label>
-          <input type="number" step="0.01" value={config.reservePriceUsd} disabled={isRunning}
-            onChange={(e) => setConfig({ reservePriceUsd: Number(e.target.value) })}
-            className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-lg disabled:bg-gray-100" />
-        </div>
         <div className="flex items-center gap-2">
           <input type="checkbox" checked={config.autoExtEnabled} disabled={isRunning}
             onChange={(e) => setConfig({ autoExtEnabled: e.target.checked })}

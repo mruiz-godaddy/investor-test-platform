@@ -48,7 +48,6 @@ export function useAutoGeneratorViewModel() {
             autoExtEnabled: config.autoExtEnabled,
             autoExtWindowSec: config.autoExtWindowSec,
             autoExtSeconds: config.autoExtSeconds,
-            reservePriceMicros: usdToMicros(config.reservePriceUsd),
             endTimeOffsetMinutes: config.endTimeOffsetMinutes,
           },
           seqRef.current,

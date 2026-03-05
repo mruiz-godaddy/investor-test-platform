@@ -4,7 +4,6 @@ import type { CreateListingRequest } from '../../../domain/entities/Listing';
 import type { Shopper } from '../../../domain/entities/Shopper';
 import {
   DEFAULT_ASKING_PRICE_MICROS,
-  DEFAULT_RESERVE_PRICE_MICROS,
   DEFAULT_AUCTION_TYPE_ID,
   DEFAULT_LISTING_TYPE,
   DEFAULT_AUTO_EXT_ENABLED,
@@ -25,7 +24,6 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
   const [domainName, setDomainName] = useState('');
   const [sellerShopperId, setSellerShopperId] = useState(shoppers[0]?.shopperId ?? '');
   const [askingPriceUsd, setAskingPriceUsd] = useState(microsToUsd(DEFAULT_ASKING_PRICE_MICROS));
-  const [reservePriceUsd, setReservePriceUsd] = useState(microsToUsd(DEFAULT_RESERVE_PRICE_MICROS));
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_LISTING_DURATION_MINUTES);
   const [auctionTypeId, setAuctionTypeId] = useState(DEFAULT_AUCTION_TYPE_ID);
   const [listingType, setListingType] = useState(DEFAULT_LISTING_TYPE);
@@ -40,7 +38,6 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
       domainName,
       sellerShopperId,
       askingPriceUsd: usdToMicros(askingPriceUsd),
-      reservePriceUsd: usdToMicros(reservePriceUsd),
       endTime,
       auctionTypeId,
       listingType,
@@ -73,17 +70,10 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Asking Price ($)</label>
-                <input type="number" step="0.01" value={askingPriceUsd} onChange={(e) => setAskingPriceUsd(Number(e.target.value))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Reserve Price ($)</label>
-                <input type="number" step="0.01" value={reservePriceUsd} onChange={(e) => setReservePriceUsd(Number(e.target.value))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-sm" />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Asking Price ($)</label>
+              <input type="number" step="0.01" value={askingPriceUsd} onChange={(e) => setAskingPriceUsd(Number(e.target.value))}
+                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-sm" />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>

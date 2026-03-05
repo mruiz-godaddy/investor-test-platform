@@ -68,7 +68,6 @@ export default function ListingDetailPage() {
               ['Asking', listing.askingPriceUsd],
               ['Current', listing.currentPriceUsd],
               ['Next Bid', listing.nextBidPriceUsd],
-              ['Reserve', listing.reservePriceUsd],
               ['Sale', listing.salePriceUsd],
             ].map(([label, value]) => (
               <div key={String(label)} className="flex justify-between">
@@ -78,10 +77,6 @@ export default function ListingDetailPage() {
                 </dd>
               </div>
             ))}
-            <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">Reserve Met?</dt>
-              <dd className="font-medium text-gray-900 dark:text-white">{listing.isReserveMet ? 'Yes' : 'No'}</dd>
-            </div>
             <div className="flex justify-between">
               <dt className="text-gray-500 dark:text-gray-400">Bids / Bidders</dt>
               <dd className="font-medium text-gray-900 dark:text-white">{listing.bidsCount} / {listing.biddersCount}</dd>

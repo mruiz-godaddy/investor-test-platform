@@ -18,11 +18,9 @@ export interface AdminListing {
   askingPriceUsd: number;
   currentPriceUsd: number;
   salePriceUsd: number | null;
-  reservePriceUsd: number;
   nextBidPriceUsd: number;
   biddersCount: number;
   bidsCount: number;
-  isReserveMet: boolean;
   isAutoExtended: boolean;
   sellerShopperId: string;
   highestBidderShopper: string;
@@ -37,7 +35,6 @@ export interface CreateListingRequest {
   domainName: string;
   sellerShopperId: string;
   askingPriceUsd?: number;
-  reservePriceUsd?: number;
   endTime?: string;
   startTime?: string;
   auctionTypeId?: number;

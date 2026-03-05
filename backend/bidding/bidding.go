@@ -334,11 +334,6 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 				bidsToPlace = append(bidsToPlace, bidToPlace{bid: proxyBid})
 			} else {
 				auctionAmt := currentPrice
-				// If bid >= reserve and reserve > 0 and no existing bid at reserve
-				if listing.ReservePriceUsd > 0 && bidAmountUsd >= listing.ReservePriceUsd &&
-					(highestAuction == nil || highestAuctionAmt < listing.ReservePriceUsd) {
-					auctionAmt = listing.ReservePriceUsd
-				}
 				auctionBid := model.Bid{
 					BidID: newBidID, ListingID: listing.ListingID,
 					ShopperID: shopperID, BidAmountUsd: auctionAmt,
@@ -419,7 +414,6 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 	}
 
 	nextBidPrice := finalPrice + GetBidIncrement(finalPrice)
-	isReserveMet := listing.ReservePriceUsd > 0 && finalPrice >= listing.ReservePriceUsd
 
 	if err := e.Store.UpdateListingAfterBid(
 		listing.ListingID,
@@ -428,7 +422,6 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 		highestBidderShopper,
 		biddersCount,
 		listing.BidsCount+newAuctionCount,
-		isReserveMet,
 	); err != nil {
 		return nil, ErrServerError
 	}

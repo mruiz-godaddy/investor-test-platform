@@ -30,7 +30,6 @@ describe('buildRandomListing', () => {
     expect(result.sellerShopperId).toBe('shopper-seller');
     expect(result.endTime).toBeDefined();
     expect(result.askingPriceUsd).toBeGreaterThan(0);
-    expect(typeof result.reservePriceUsd).toBe('number');
     expect(typeof result.autoExtEnabled).toBe('boolean');
   });
 
@@ -131,7 +130,6 @@ describe('buildAZListings', () => {
       expect(listing.sellerShopperId).toBe('shopper-seller');
       expect(listing.endTime).toBeDefined();
       expect(listing.askingPriceUsd).toBeGreaterThan(0);
-      expect(typeof listing.reservePriceUsd).toBe('number');
       expect(typeof listing.autoExtEnabled).toBe('boolean');
     }
   });

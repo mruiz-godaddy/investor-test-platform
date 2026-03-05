@@ -294,7 +294,6 @@ func (h *AppHandler) buildWonListingJSON(l *model.Listing) map[string]interface{
 		"askingPrice":       priceArray(l.AskingPriceUsd),
 		"salePrice":         salePrice,
 		"bidsOrOffersCount": l.BidsCount,
-		"isReserveMet":      l.IsReserveMet,
 	}
 }
 
@@ -312,7 +311,6 @@ func (h *AppHandler) buildLostListingJSON(l *model.Listing) map[string]interface
 		"askingPrice":       priceArray(l.AskingPriceUsd),
 		"salePrice":         salePrice,
 		"bidsOrOffersCount": l.BidsCount,
-		"isReserveMet":      l.IsReserveMet,
 	}
 }
 
@@ -340,8 +338,8 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 		"start_bid_amount_usd": askingPrice,
 		"buy_it_now_amount":     0,
 		"buy_it_now_amount_usd": 0,
-		"reserved_price_amount":     float64(l.ReservePriceUsd) / 1_000_000,
-		"reserved_price_amount_usd": float64(l.ReservePriceUsd) / 1_000_000,
+		"reserved_price_amount":     0,
+		"reserved_price_amount_usd": 0,
 		"valuation_price":     0,
 		"valuation_price_usd": 0,
 
@@ -367,7 +365,7 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 		// Counts & flags
 		"bids":              l.BidsCount,
 		"monthly_traffic":   0,
-		"reserved_price_flag":  l.ReservePriceUsd > 0,
+		"reserved_price_flag":  false,
 		"buy_it_now_flag":      false,
 		"bid_accepted_flag":    false,
 		"is_website_included":  false,
@@ -510,7 +508,6 @@ func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Sho
 		"memberId":              sellerMemberID,
 		"isPinned":              false,
 		"isWatching":            false,
-		"isReserveMet":          listing.IsReserveMet,
 		"isAutoExtended":        listing.IsAutoExtended,
 		"renewalPfid":           0,
 		"estimatedValueRank":    0,

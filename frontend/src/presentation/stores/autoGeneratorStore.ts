@@ -10,7 +10,6 @@ export interface AutoGenStoreConfig {
   autoExtEnabled: boolean;
   autoExtWindowSec: number;
   autoExtSeconds: number;
-  reservePriceUsd: number;
   endTimeOffsetMinutes: number;
 }
 
@@ -35,7 +34,6 @@ const DEFAULT_CONFIG: AutoGenStoreConfig = {
   autoExtEnabled: true,
   autoExtWindowSec: 60,
   autoExtSeconds: 300,
-  reservePriceUsd: 0,
   endTimeOffsetMinutes: 5,
 };
 

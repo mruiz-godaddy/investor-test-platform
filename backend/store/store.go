@@ -27,12 +27,18 @@ func intToBool(i int) bool {
 	return i != 0
 }
 
+const listingColumns = `listing_id, domain_name, listing_status, listing_type, auction_type_id,
+	start_time, end_time, asking_price_usd, current_price_usd, sale_price_usd,
+	next_bid_price_usd, bidders_count, bids_count, is_auto_extended,
+	seller_shopper_id, highest_bidder_shopper, auto_ext_window_sec, auto_ext_seconds,
+	auto_ext_enabled, created_at`
+
 // scanListing scans a listing row into a model.Listing.
 func scanListing(scanner interface {
 	Scan(dest ...interface{}) error
 }) (*model.Listing, error) {
 	var l model.Listing
-	var isReserveMet, isAutoExtended, autoExtEnabled int
+	var isAutoExtended, autoExtEnabled int
 	var salePrice sql.NullInt64
 	var highestBidder sql.NullString
 
@@ -47,11 +53,9 @@ func scanListing(scanner interface {
 		&l.AskingPriceUsd,
 		&l.CurrentPriceUsd,
 		&salePrice,
-		&l.ReservePriceUsd,
 		&l.NextBidPriceUsd,
 		&l.BiddersCount,
 		&l.BidsCount,
-		&isReserveMet,
 		&isAutoExtended,
 		&l.SellerShopperID,
 		&highestBidder,
@@ -64,7 +68,6 @@ func scanListing(scanner interface {
 		return nil, err
 	}
 
-	l.IsReserveMet = intToBool(isReserveMet)
 	l.IsAutoExtended = intToBool(isAutoExtended)
 	l.AutoExtEnabled = intToBool(autoExtEnabled)
 
@@ -185,15 +188,15 @@ func (s *Store) CreateListing(l model.Listing) (int64, error) {
 		`INSERT INTO listings (
 			domain_name, listing_status, listing_type, auction_type_id,
 			start_time, end_time, asking_price_usd, current_price_usd,
-			sale_price_usd, reserve_price_usd, next_bid_price_usd,
-			bidders_count, bids_count, is_reserve_met, is_auto_extended,
+			sale_price_usd, next_bid_price_usd,
+			bidders_count, bids_count, is_auto_extended,
 			seller_shopper_id, highest_bidder_shopper,
 			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.DomainName, l.ListingStatus, l.ListingType, l.AuctionTypeID,
 		l.StartTime, l.EndTime, l.AskingPriceUsd, l.AskingPriceUsd,
-		l.SalePriceUsd, l.ReservePriceUsd, l.AskingPriceUsd,
-		l.BiddersCount, l.BidsCount, boolToInt(l.IsReserveMet), boolToInt(l.IsAutoExtended),
+		l.SalePriceUsd, l.AskingPriceUsd,
+		l.BiddersCount, l.BidsCount, boolToInt(l.IsAutoExtended),
 		l.SellerShopperID, sql.NullString{String: l.HighestBidderShopper, Valid: l.HighestBidderShopper != ""},
 		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled),
 	)
@@ -204,7 +207,7 @@ func (s *Store) CreateListing(l model.Listing) (int64, error) {
 }
 
 func (s *Store) GetListing(listingID int64) (*model.Listing, error) {
-	row := s.DB.Conn.QueryRow(`SELECT * FROM listings WHERE listing_id = ?`, listingID)
+	row := s.DB.Conn.QueryRow(`SELECT `+listingColumns+` FROM listings WHERE listing_id = ?`, listingID)
 	l, err := scanListing(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -216,7 +219,7 @@ func (s *Store) GetListing(listingID int64) (*model.Listing, error) {
 }
 
 func (s *Store) ListListings() ([]model.Listing, error) {
-	rows, err := s.DB.Conn.Query(`SELECT * FROM listings ORDER BY listing_id`)
+	rows, err := s.DB.Conn.Query(`SELECT ` + listingColumns + ` FROM listings ORDER BY listing_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -249,10 +252,10 @@ func (s *Store) UpdateListingEndTime(listingID int64, endTime string) error {
 	return err
 }
 
-func (s *Store) UpdateListingAfterBid(listingID int64, currentPrice, nextBidPrice int64, highestBidder string, biddersCount, bidsCount int, isReserveMet bool) error {
+func (s *Store) UpdateListingAfterBid(listingID int64, currentPrice, nextBidPrice int64, highestBidder string, biddersCount, bidsCount int) error {
 	_, err := s.DB.Conn.Exec(
-		`UPDATE listings SET current_price_usd = ?, next_bid_price_usd = ?, highest_bidder_shopper = ?, bidders_count = ?, bids_count = ?, is_reserve_met = ? WHERE listing_id = ?`,
-		currentPrice, nextBidPrice, highestBidder, biddersCount, bidsCount, boolToInt(isReserveMet), listingID,
+		`UPDATE listings SET current_price_usd = ?, next_bid_price_usd = ?, highest_bidder_shopper = ?, bidders_count = ?, bids_count = ? WHERE listing_id = ?`,
+		currentPrice, nextBidPrice, highestBidder, biddersCount, bidsCount, listingID,
 	)
 	return err
 }
@@ -267,7 +270,7 @@ func (s *Store) SetAutoExtended(listingID int64, newEndTime string) error {
 
 func (s *Store) GetOpenListingsPastEndTime(now time.Time) ([]model.Listing, error) {
 	rows, err := s.DB.Conn.Query(
-		`SELECT * FROM listings WHERE listing_status = 'OPEN' AND end_time <= ?`,
+		`SELECT `+listingColumns+` FROM listings WHERE listing_status = 'OPEN' AND end_time <= ?`,
 		now.Format(time.RFC3339),
 	)
 	if err != nil {
@@ -493,15 +496,15 @@ func (s *Store) ImportListing(l model.Listing) error {
 		`INSERT OR REPLACE INTO listings (
 			listing_id, domain_name, listing_status, listing_type, auction_type_id,
 			start_time, end_time, asking_price_usd, current_price_usd,
-			sale_price_usd, reserve_price_usd, next_bid_price_usd,
-			bidders_count, bids_count, is_reserve_met, is_auto_extended,
+			sale_price_usd, next_bid_price_usd,
+			bidders_count, bids_count, is_auto_extended,
 			seller_shopper_id, highest_bidder_shopper,
 			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.ListingID, l.DomainName, l.ListingStatus, l.ListingType, l.AuctionTypeID,
 		l.StartTime, l.EndTime, l.AskingPriceUsd, l.CurrentPriceUsd,
-		l.SalePriceUsd, l.ReservePriceUsd, l.NextBidPriceUsd,
-		l.BiddersCount, l.BidsCount, boolToInt(l.IsReserveMet), boolToInt(l.IsAutoExtended),
+		l.SalePriceUsd, l.NextBidPriceUsd,
+		l.BiddersCount, l.BidsCount, boolToInt(l.IsAutoExtended),
 		l.SellerShopperID, sql.NullString{String: l.HighestBidderShopper, Valid: l.HighestBidderShopper != ""},
 		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled), l.CreatedAt,
 	)
@@ -520,7 +523,12 @@ func (s *Store) ImportBid(b model.Bid) error {
 // GetWonListingsForShopper returns listings where status=SOLD, shopper is the highest bidder, and shopper has bids.
 func (s *Store) GetWonListingsForShopper(shopperID string) ([]model.Listing, error) {
 	rows, err := s.DB.Conn.Query(
-		`SELECT l.* FROM listings l
+		`SELECT l.listing_id, l.domain_name, l.listing_status, l.listing_type, l.auction_type_id,
+			l.start_time, l.end_time, l.asking_price_usd, l.current_price_usd, l.sale_price_usd,
+			l.next_bid_price_usd, l.bidders_count, l.bids_count, l.is_auto_extended,
+			l.seller_shopper_id, l.highest_bidder_shopper, l.auto_ext_window_sec, l.auto_ext_seconds,
+			l.auto_ext_enabled, l.created_at
+		 FROM listings l
 		 WHERE l.listing_status = 'SOLD'
 		   AND l.highest_bidder_shopper = ?
 		   AND EXISTS (SELECT 1 FROM bids b WHERE b.listing_id = l.listing_id AND b.shopper_id = ? AND b.bid_status = 'ACTIVE')
@@ -546,7 +554,12 @@ func (s *Store) GetWonListingsForShopper(shopperID string) ([]model.Listing, err
 // GetLostListingsForShopper returns listings where status IN (SOLD,CLOSED), shopper has bids, but shopper is NOT the highest bidder.
 func (s *Store) GetLostListingsForShopper(shopperID string) ([]model.Listing, error) {
 	rows, err := s.DB.Conn.Query(
-		`SELECT l.* FROM listings l
+		`SELECT l.listing_id, l.domain_name, l.listing_status, l.listing_type, l.auction_type_id,
+			l.start_time, l.end_time, l.asking_price_usd, l.current_price_usd, l.sale_price_usd,
+			l.next_bid_price_usd, l.bidders_count, l.bids_count, l.is_auto_extended,
+			l.seller_shopper_id, l.highest_bidder_shopper, l.auto_ext_window_sec, l.auto_ext_seconds,
+			l.auto_ext_enabled, l.created_at
+		 FROM listings l
 		 WHERE l.listing_status IN ('SOLD', 'CLOSED')
 		   AND (l.highest_bidder_shopper IS NULL OR l.highest_bidder_shopper != ?)
 		   AND EXISTS (SELECT 1 FROM bids b WHERE b.listing_id = l.listing_id AND b.shopper_id = ? AND b.bid_status = 'ACTIVE')
@@ -572,7 +585,7 @@ func (s *Store) GetLostListingsForShopper(shopperID string) ([]model.Listing, er
 // SearchListingsByDomain returns OPEN listings where domain_name matches query (case-insensitive LIKE).
 func (s *Store) SearchListingsByDomain(query string) ([]model.Listing, error) {
 	rows, err := s.DB.Conn.Query(
-		`SELECT * FROM listings WHERE listing_status = 'OPEN' AND LOWER(domain_name) LIKE LOWER(?) ORDER BY listing_id`,
+		`SELECT `+listingColumns+` FROM listings WHERE listing_status = 'OPEN' AND LOWER(domain_name) LIKE LOWER(?) ORDER BY listing_id`,
 		"%"+query+"%",
 	)
 	if err != nil {

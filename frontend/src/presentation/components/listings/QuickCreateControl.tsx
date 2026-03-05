@@ -29,15 +29,12 @@ function randomAskingPriceMicros(): number {
 export function buildRandomListing(domain: string, durationMs: number): CreateListingRequest {
   const endTime = new Date(Date.now() + durationMs).toISOString();
   const askingPriceUsd = randomAskingPriceMicros();
-  const hasReserve = Math.random() > 0.7;
-  const reservePriceUsd = hasReserve ? askingPriceUsd * randomInt(2, 5) : 0;
   const autoExtEnabled = Math.random() > 0.3;
 
   return {
     domainName: domain,
     sellerShopperId: 'shopper-seller-1',
     askingPriceUsd,
-    reservePriceUsd,
     endTime,
     autoExtEnabled,
     autoExtWindowSec: autoExtEnabled ? 60 : undefined,
@@ -113,28 +110,33 @@ export default function QuickCreateControl(props: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <input
-        type="number"
-        min={minVal}
-        value={amount}
-        onChange={(e) => setAmount(Math.max(minVal, Number(e.target.value)))}
-        className="w-20 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm tabular-nums"
-      />
-      <select
-        value={unit}
-        onChange={(e) => {
-          const next = e.target.value as TimeUnit;
-          setUnit(next);
-          setAmount(Math.max(UNIT_MIN[next], amount));
-        }}
-        className="rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm"
-      >
-        <option value="seconds">sec</option>
-        <option value="minutes">min</option>
-        <option value="hours">hrs</option>
-        <option value="days">days</option>
-      </select>
+    <div className="flex items-end gap-2">
+      <div>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Duration</label>
+        <div className="flex gap-1">
+          <input
+            type="number"
+            min={minVal}
+            value={amount}
+            onChange={(e) => setAmount(Math.max(minVal, Number(e.target.value)))}
+            className="w-20 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm tabular-nums"
+          />
+          <select
+            value={unit}
+            onChange={(e) => {
+              const next = e.target.value as TimeUnit;
+              setUnit(next);
+              setAmount(Math.max(UNIT_MIN[next], amount));
+            }}
+            className="rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm"
+          >
+            <option value="seconds">sec</option>
+            <option value="minutes">min</option>
+            <option value="hours">hrs</option>
+            <option value="days">days</option>
+          </select>
+        </div>
+      </div>
       <button
         type="button"
         onClick={handleClick}

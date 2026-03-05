@@ -66,7 +66,7 @@ func (m *Manager) checkExpiredListings() {
 		}
 
 		// Determine terminal status: SOLD only if bids were placed and reserve met
-		if listing.BidsCount > 0 && (listing.ReservePriceUsd == 0 || listing.CurrentPriceUsd >= listing.ReservePriceUsd) {
+		if listing.BidsCount > 0 {
 			m.Store.UpdateListingStatus(listing.ListingID, "SOLD", listing.CurrentPriceUsd)
 			log.Printf("LIFECYCLE listing=%d OPEN→SOLD salePrice=$%.2f",
 				listing.ListingID, float64(listing.CurrentPriceUsd)/1_000_000)

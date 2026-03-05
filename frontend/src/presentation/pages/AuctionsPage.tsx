@@ -32,12 +32,7 @@ export default function AuctionsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Auctions</h2>
-        {hasListings && (
-          <QuickCreateControl onSubmit={createListing} isPending={isCreating} />
-        )}
-      </div>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Auctions</h2>
 
       {hasListings && (
         <div className="mt-4 grid grid-cols-4 gap-4">
@@ -58,6 +53,7 @@ export default function AuctionsPage() {
             onForceStatus={setStatusTarget}
             onExtendTime={setExtendTarget}
             onSniperBid={setBidTarget}
+            headerRight={<QuickCreateControl onSubmit={createListing} isPending={isCreating} />}
           />
         ) : (
           <QuickCreateControl onSetup={setupSystem} isPending={isSettingUp} variant="expanded" />

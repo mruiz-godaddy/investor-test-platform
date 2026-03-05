@@ -5,7 +5,6 @@ export const ScenarioName = {
   SNIPER_BID: 'sniper_bid',
   RACE_CONDITION: 'race_condition',
   AUTO_EXTEND_CHAIN: 'auto_extend_chain',
-  RESERVE_NOT_MET: 'reserve_not_met',
   DELAYED_TRANSITION: 'delayed_transition',
   PROXY_OUTBID: 'proxy_outbid',
   PROXY_STACK: 'proxy_stack',
@@ -48,11 +47,6 @@ export const SCENARIOS: ScenarioMetadata[] = [
     name: ScenarioName.AUTO_EXTEND_CHAIN,
     description: 'Multiple snipers trigger chained auto-extensions (120s each)',
     tags: ['auto-extend', 'chain'],
-  },
-  {
-    name: ScenarioName.RESERVE_NOT_MET,
-    description: 'Auction ends with bids below reserve price — transitions to CLOSED',
-    tags: ['reserve', 'finalization'],
   },
   {
     name: ScenarioName.DELAYED_TRANSITION,

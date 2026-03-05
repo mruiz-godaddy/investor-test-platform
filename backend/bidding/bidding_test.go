@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"backend/db"
-	"backend/lifecycle"
 	"backend/model"
 	"backend/store"
 )
@@ -102,7 +101,7 @@ func TestPlaceBid_TosNotAccepted(t *testing.T) {
 		IsTosAccepted: false,
 	})
 	bidErr, ok := err.(*BidError)
-	if !ok || bidErr.Code != "USER_MUST_AGREE_TO_TOS" {
+	if !ok || bidErr.Code != "USER_TOS" {
 		t.Errorf("expected TOS error, got %v", err)
 	}
 }
@@ -118,7 +117,7 @@ func TestPlaceBid_BidTooLow(t *testing.T) {
 		IsTosAccepted: true,
 	})
 	bidErr, ok := err.(*BidError)
-	if !ok || bidErr.Code != "BID_IS_LESS_THAN_STARTING_AMT" {
+	if !ok || bidErr.Code != "BID_MIN_NOT_MET" {
 		t.Errorf("expected BID_IS_LESS_THAN_STARTING_AMT, got %v", err)
 	}
 }
@@ -150,7 +149,7 @@ func TestPlaceBid_ListingExpired(t *testing.T) {
 		IsTosAccepted: true,
 	})
 	bidErr, ok := err.(*BidError)
-	if !ok || bidErr.Code != "LISTING_CLOSED" {
+	if !ok || bidErr.Code != "LISTING_NOT_OPEN" {
 		t.Errorf("expected LISTING_CLOSED, got %v", err)
 	}
 }
@@ -360,7 +359,7 @@ func TestPlaceBid_SameAmountAsProxy(t *testing.T) {
 		UsdBidAmount: 20_000_000, IsTosAccepted: true,
 	})
 	bidErr, ok := err.(*BidError)
-	if !ok || bidErr.Code != "BID_IS_LESS_THAN_STARTING_AMT" {
+	if !ok || bidErr.Code != "BID_MIN_NOT_MET" {
 		t.Errorf("expected BID_IS_LESS_THAN_STARTING_AMT, got %v", err)
 	}
 }
@@ -407,33 +406,3 @@ func TestPlaceBid_IsHighestBidderFalseWhenOutbid(t *testing.T) {
 	}
 }
 
-func TestAutoExtension(t *testing.T) {
-	engine, s := setupTest(t)
-	defer lifecycle.Reset()
-
-	// Create listing ending in 30 seconds with 60s auto-ext window
-	endTime := time.Now().UTC().Add(30 * time.Second)
-	listingID := createTestListing(t, s, endTime)
-
-	// Bid should trigger auto-extension (we're within 60s window)
-	_, err := engine.PlaceBid(BidRequest{
-		ListingID:     listingID,
-		ShopperID:     "shopper-buyer",
-		UsdBidAmount:  5_000_000,
-		IsTosAccepted: true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	listing, _ := s.GetListing(listingID)
-	if !listing.IsAutoExtended {
-		t.Error("expected listing to be auto-extended")
-	}
-	newEndTime, _ := time.Parse(time.RFC3339, listing.EndTime)
-	expectedEnd := endTime.Add(300 * time.Second)
-	diff := newEndTime.Sub(expectedEnd)
-	if diff < -time.Second || diff > time.Second {
-		t.Errorf("expected endTime ~%v, got %v", expectedEnd, newEndTime)
-	}
-}

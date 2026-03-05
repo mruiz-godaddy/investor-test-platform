@@ -55,21 +55,6 @@ func TestRaceCondition(t *testing.T) {
 	}
 }
 
-func TestReserveNotMet(t *testing.T) {
-	l := setupScenarioTest(t)
-	result, err := l.Load("reserve_not_met")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Check that listing has reserve > current price
-	listings := result["listings"].([]map[string]interface{})
-	listingID := listings[0]["listingId"].(int64)
-	listing, _ := l.Store.GetListing(listingID)
-	if listing.IsReserveMet {
-		t.Error("reserve should NOT be met")
-	}
-}
-
 func TestUnknownScenario(t *testing.T) {
 	l := setupScenarioTest(t)
 	_, err := l.Load("nonexistent")
@@ -163,7 +148,7 @@ func TestProxyBurn(t *testing.T) {
 func TestAllScenarios(t *testing.T) {
 	names := []string{
 		"normal_auction", "sniper_bid", "race_condition",
-		"auto_extend_chain", "reserve_not_met", "delayed_transition",
+		"auto_extend_chain", "delayed_transition",
 		"proxy_outbid", "proxy_stack", "proxy_burn",
 	}
 	for _, name := range names {

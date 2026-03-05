@@ -93,8 +93,10 @@ func TestPlaceBidHandler_BidTooLow(t *testing.T) {
 	endTime := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)
 	id, _ := s.CreateListing(model.Listing{
 		DomainName: "test.com", ListingStatus: model.StatusOpen,
+		ListingType: "EXPIRY_AUCTIONS", AuctionTypeID: 16,
 		StartTime: time.Now().UTC().Format(time.RFC3339), EndTime: endTime,
 		AskingPriceUsd: 5_000_000, SellerShopperID: "shopper-seller",
+		AutoExtEnabled: true, AutoExtWindowSec: 60, AutoExtSeconds: 300,
 	})
 
 	body, _ := json.Marshal(map[string]interface{}{
@@ -114,8 +116,8 @@ func TestPlaceBidHandler_BidTooLow(t *testing.T) {
 
 	var resp map[string]interface{}
 	json.Unmarshal(rr.Body.Bytes(), &resp)
-	if resp["code"] != "BID_IS_LESS_THAN_STARTING_AMT" {
-		t.Errorf("expected BID_IS_LESS_THAN_STARTING_AMT, got %v", resp["code"])
+	if resp["code"] != "BID_MIN_NOT_MET" {
+		t.Errorf("expected BID_MIN_NOT_MET, got %v", resp["code"])
 	}
 	// Verify error is NOT nested under "error" key
 	if _, hasError := resp["error"]; hasError {
@@ -129,8 +131,10 @@ func TestPlaceBidHandler_MissingShopper(t *testing.T) {
 	endTime := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)
 	id, _ := s.CreateListing(model.Listing{
 		DomainName: "test.com", ListingStatus: model.StatusOpen,
+		ListingType: "EXPIRY_AUCTIONS", AuctionTypeID: 16,
 		StartTime: time.Now().UTC().Format(time.RFC3339), EndTime: endTime,
 		AskingPriceUsd: 5_000_000, SellerShopperID: "shopper-seller",
+		AutoExtEnabled: true, AutoExtWindowSec: 60, AutoExtSeconds: 300,
 	})
 
 	body, _ := json.Marshal(map[string]interface{}{

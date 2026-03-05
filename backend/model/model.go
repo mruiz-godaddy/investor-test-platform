@@ -30,11 +30,9 @@ type Listing struct {
 	AskingPriceUsd       int64  `json:"askingPriceUsd"`
 	CurrentPriceUsd      int64  `json:"currentPriceUsd"`
 	SalePriceUsd         *int64 `json:"salePriceUsd"`
-	ReservePriceUsd      int64  `json:"reservePriceUsd"`
 	NextBidPriceUsd      int64  `json:"nextBidPriceUsd"`
 	BiddersCount         int    `json:"biddersCount"`
 	BidsCount            int    `json:"bidsCount"`
-	IsReserveMet         bool   `json:"isReserveMet"`
 	IsAutoExtended       bool   `json:"isAutoExtended"`
 	SellerShopperID      string `json:"sellerShopperId"`
 	HighestBidderShopper string `json:"highestBidderShopper"`

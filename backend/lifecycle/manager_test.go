@@ -72,31 +72,6 @@ func TestAutoFinalize_CLOSED_NoBids(t *testing.T) {
 	}
 }
 
-func TestAutoFinalize_CLOSED_ReserveNotMet(t *testing.T) {
-	m, s := setupManagerTest(t)
-	Reset()
-	defer Reset()
-
-	pastEnd := time.Now().UTC().Add(-1 * time.Minute).Format(time.RFC3339)
-	id, _ := s.CreateListing(model.Listing{
-		DomainName:      "test.com",
-		ListingStatus:   model.StatusOpen,
-		StartTime:       pastEnd,
-		EndTime:         pastEnd,
-		AskingPriceUsd:  5_000_000,
-		BidsCount:       1,
-		ReservePriceUsd: 50_000_000, // Reserve = $50, current = $10 (asking)
-		SellerShopperID: "shopper-seller",
-	})
-
-	m.checkExpiredListings()
-
-	listing, _ := s.GetListing(id)
-	if listing.ListingStatus != model.StatusClosed {
-		t.Errorf("expected CLOSED (reserve not met), got %s", listing.ListingStatus)
-	}
-}
-
 func TestAutoFinalize_Disabled(t *testing.T) {
 	m, s := setupManagerTest(t)
 	m.Config.SetAutoFinalize(false)

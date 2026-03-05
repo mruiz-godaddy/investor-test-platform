@@ -35,8 +35,6 @@ func (l *Loader) Load(name string) (map[string]interface{}, error) {
 		return l.raceCondition()
 	case "auto_extend_chain":
 		return l.autoExtendChain()
-	case "reserve_not_met":
-		return l.reserveNotMet()
 	case "delayed_transition":
 		return l.delayedTransition()
 	case "proxy_outbid":
@@ -247,45 +245,6 @@ func (l *Loader) autoExtendChain() (map[string]interface{}, error) {
 			{"shopperId": "shopper-sniper-a", "memberId": 10003},
 			{"shopperId": "shopper-sniper-b", "memberId": 10004},
 			{"shopperId": "shopper-sniper-c", "memberId": 10005},
-		},
-		[]map[string]interface{}{
-			{"listingId": listing.ListingID, "domainName": listing.DomainName, "endTime": listing.EndTime},
-		},
-		1,
-	), nil
-}
-
-// 9.5 reserve_not_met — Auction ends with bids below reserve price.
-func (l *Loader) reserveNotMet() (map[string]interface{}, error) {
-	l.Config.SetAutoFinalize(true)
-	l.Config.SetStatusTransitionDelayMs(0)
-
-	now := lifecycle.Now()
-	listingID, _ := l.Store.CreateListing(model.Listing{
-		DomainName:       "premium.com",
-		ListingStatus:    model.StatusOpen,
-		ListingType:      "EXPIRY_AUCTIONS",
-		AuctionTypeID:    16,
-		StartTime:        now.Format(time.RFC3339),
-		EndTime:          now.Add(60 * time.Second).Format(time.RFC3339),
-		AskingPriceUsd:   5_000_000,
-		ReservePriceUsd:  50_000_000,
-		SellerShopperID:  "shopper-seller",
-		AutoExtEnabled:   false,
-	})
-
-	l.Engine.PlaceBid(bidding.BidRequest{
-		ListingID: listingID, ShopperID: "shopper-buyer",
-		UsdBidAmount: 10_000_000, IsTosAccepted: true,
-	})
-
-	listing, _ := l.Store.GetListing(listingID)
-	return buildResult("reserve_not_met",
-		"Auction ends with bids below reserve price — transitions to CLOSED",
-		l.Config,
-		[]map[string]interface{}{
-			{"shopperId": "shopper-seller", "memberId": 10001},
-			{"shopperId": "shopper-buyer", "memberId": 10002},
 		},
 		[]map[string]interface{}{
 			{"listingId": listing.ListingID, "domainName": listing.DomainName, "endTime": listing.EndTime},

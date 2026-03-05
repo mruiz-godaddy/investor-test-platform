@@ -23,11 +23,9 @@ const baseDto = {
   askingPriceUsd: 5_000_000,
   currentPriceUsd: 5_000_000,
   salePriceUsd: null,
-  reservePriceUsd: 0,
   nextBidPriceUsd: 10_000_000,
   biddersCount: 1,
   bidsCount: 1,
-  isReserveMet: false,
   isAutoExtended: false,
   sellerShopperId: 'shopper-seller',
   highestBidderShopper: 'shopper-buyer',
@@ -39,7 +37,7 @@ const baseDto = {
 };
 
 describe('mapAdminListing', () => {
-  it('maps all 22 fields correctly', () => {
+  it('maps all 20 fields correctly', () => {
     const result = mapAdminListing(baseDto);
     expect(result.listingId).toBe(1);
     expect(result.domainName).toBe('test.com');
