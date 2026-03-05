@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"backend/config"
 	"backend/db"
 	"backend/model"
 	"backend/store"
@@ -15,7 +16,8 @@ func setupTest(t *testing.T) (*Engine, *store.Store) {
 	database.SeedDefaults()
 	t.Cleanup(func() { database.Close() })
 	s := store.New(database)
-	return NewEngine(s), s
+	cfg := config.New()
+	return NewEngine(s, cfg), s
 }
 
 func createTestListing(t *testing.T, s *store.Store, endTime time.Time) int64 {

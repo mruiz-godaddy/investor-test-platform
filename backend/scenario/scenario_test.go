@@ -17,7 +17,7 @@ func setupScenarioTest(t *testing.T) *Loader {
 	t.Cleanup(func() { database.Close() })
 	s := store.New(database)
 	cfg := config.New()
-	eng := bidding.NewEngine(s)
+	eng := bidding.NewEngine(s, cfg)
 	lifecycle.Reset()
 	return NewLoader(s, cfg, eng)
 }

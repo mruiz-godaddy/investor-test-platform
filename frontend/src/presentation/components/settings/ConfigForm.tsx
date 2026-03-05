@@ -4,18 +4,23 @@ import type { ConfigSnapshot, ConfigUpdate } from '../../../domain/entities/Serv
 interface Props {
   config: ConfigSnapshot | undefined;
   onUpdate: (update: ConfigUpdate) => void;
+  isPending?: boolean;
 }
 
-export default function ConfigForm({ config, onUpdate }: Props) {
+export default function ConfigForm({ config, onUpdate, isPending }: Props) {
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [transitionDelay, setTransitionDelay] = useState(0);
   const [finalizerInterval, setFinalizerInterval] = useState(1000);
+  const [autoExtWindowSec, setAutoExtWindowSec] = useState(60);
+  const [autoExtSeconds, setAutoExtSeconds] = useState(300);
 
   useEffect(() => {
     if (config) {
       setAutoFinalize(config.autoFinalize);
       setTransitionDelay(config.statusTransitionDelayMs);
       setFinalizerInterval(config.finalizerIntervalMs);
+      setAutoExtWindowSec(config.autoExtWindowSec);
+      setAutoExtSeconds(config.autoExtSeconds);
     }
   }, [config]);
 
@@ -25,6 +30,8 @@ export default function ConfigForm({ config, onUpdate }: Props) {
     if (config && autoFinalize !== config.autoFinalize) update.autoFinalize = autoFinalize;
     if (config && transitionDelay !== config.statusTransitionDelayMs) update.statusTransitionDelayMs = transitionDelay;
     if (config && finalizerInterval !== config.finalizerIntervalMs) update.finalizerIntervalMs = finalizerInterval;
+    if (config && autoExtWindowSec !== config.autoExtWindowSec) update.autoExtWindowSec = autoExtWindowSec;
+    if (config && autoExtSeconds !== config.autoExtSeconds) update.autoExtSeconds = autoExtSeconds;
     onUpdate(update);
   };
 
@@ -47,9 +54,19 @@ export default function ConfigForm({ config, onUpdate }: Props) {
           <input type="number" value={finalizerInterval} onChange={(e) => setFinalizerInterval(Number(e.target.value))}
             className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-lg" />
         </div>
+        <div>
+          <label className="block text-base font-medium text-gray-700 dark:text-gray-200">Auto-Extension Window (sec)</label>
+          <input type="number" value={autoExtWindowSec} onChange={(e) => setAutoExtWindowSec(Number(e.target.value))}
+            className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-lg" />
+        </div>
+        <div>
+          <label className="block text-base font-medium text-gray-700 dark:text-gray-200">Auto-Extension Duration (sec)</label>
+          <input type="number" value={autoExtSeconds} onChange={(e) => setAutoExtSeconds(Number(e.target.value))}
+            className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-3 py-2 text-lg" />
+        </div>
       </div>
-      <button type="submit" className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-lg font-semibold text-white hover:bg-indigo-500">
-        Update Config
+      <button type="submit" disabled={isPending} className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-lg font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
+        {isPending ? 'Saving...' : 'Update Config'}
       </button>
     </form>
   );

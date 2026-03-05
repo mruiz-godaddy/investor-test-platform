@@ -35,7 +35,10 @@ export function useSettingsViewModel() {
 
   const configMutation = useMutation({
     mutationFn: (update: ConfigUpdate) => updateConfig.execute(update),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['config'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+      addToast({ type: 'success', message: 'Configuration saved' });
+    },
   });
 
   const timeMutation = useMutation({
@@ -86,6 +89,7 @@ export function useSettingsViewModel() {
     config,
     time,
     updateConfig: configMutation.mutate,
+    isUpdatingConfig: configMutation.isPending,
     updateTime: timeMutation.mutate,
     wipeDatabase: wipeMutation.mutate,
     isWiping: wipeMutation.isPending,

@@ -4,4 +4,6 @@ export const configSnapshotSchema = z.object({
   autoFinalize: z.boolean(),
   statusTransitionDelayMs: z.number(),
   finalizerIntervalMs: z.number(),
+  autoExtWindowSec: z.number(),
+  autoExtSeconds: z.number(),
 });

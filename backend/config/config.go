@@ -7,6 +7,8 @@ type Config struct {
 	AutoFinalize            bool // default: true — background goroutine auto-transitions expired listings
 	StatusTransitionDelayMs int  // default: 0 — artificial delay between endTime passing and status change
 	FinalizerIntervalMs     int  // default: 1000 — how often the background goroutine checks (ms)
+	AutoExtWindowSec        int  // default: 60 — last N seconds before end time that triggers extension
+	AutoExtSeconds          int  // default: 300 — how many seconds to extend by
 }
 
 func New() *Config {
@@ -14,6 +16,8 @@ func New() *Config {
 		AutoFinalize:            true,
 		StatusTransitionDelayMs: 0,
 		FinalizerIntervalMs:     1000,
+		AutoExtWindowSec:        60,
+		AutoExtSeconds:          300,
 	}
 }
 
@@ -53,9 +57,33 @@ func (c *Config) SetFinalizerIntervalMs(v int) {
 	c.FinalizerIntervalMs = v
 }
 
+func (c *Config) GetAutoExtWindowSec() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.AutoExtWindowSec
+}
+
+func (c *Config) SetAutoExtWindowSec(v int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.AutoExtWindowSec = v
+}
+
+func (c *Config) GetAutoExtSeconds() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.AutoExtSeconds
+}
+
+func (c *Config) SetAutoExtSeconds(v int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.AutoExtSeconds = v
+}
+
 // Update applies non-nil fields from an update request.
 // Returns the current state after applying.
-func (c *Config) Update(autoFinalize *bool, delayMs *int, intervalMs *int) {
+func (c *Config) Update(autoFinalize *bool, delayMs *int, intervalMs *int, autoExtWindowSec *int, autoExtSeconds *int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if autoFinalize != nil {
@@ -67,6 +95,12 @@ func (c *Config) Update(autoFinalize *bool, delayMs *int, intervalMs *int) {
 	if intervalMs != nil {
 		c.FinalizerIntervalMs = *intervalMs
 	}
+	if autoExtWindowSec != nil {
+		c.AutoExtWindowSec = *autoExtWindowSec
+	}
+	if autoExtSeconds != nil {
+		c.AutoExtSeconds = *autoExtSeconds
+	}
 }
 
 // Snapshot returns a copy of the current config for JSON serialization.
@@ -77,6 +111,8 @@ func (c *Config) Snapshot() ConfigSnapshot {
 		AutoFinalize:            c.AutoFinalize,
 		StatusTransitionDelayMs: c.StatusTransitionDelayMs,
 		FinalizerIntervalMs:     c.FinalizerIntervalMs,
+		AutoExtWindowSec:        c.AutoExtWindowSec,
+		AutoExtSeconds:          c.AutoExtSeconds,
 	}
 }
 
@@ -84,4 +120,6 @@ type ConfigSnapshot struct {
 	AutoFinalize            bool `json:"autoFinalize"`
 	StatusTransitionDelayMs int  `json:"statusTransitionDelayMs"`
 	FinalizerIntervalMs     int  `json:"finalizerIntervalMs"`
+	AutoExtWindowSec        int  `json:"autoExtWindowSec"`
+	AutoExtSeconds          int  `json:"autoExtSeconds"`
 }

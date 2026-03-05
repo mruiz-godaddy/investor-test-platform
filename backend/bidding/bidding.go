@@ -1,10 +1,12 @@
 package bidding
 
 import (
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 
+	"backend/config"
 	"backend/lifecycle"
 	"backend/model"
 	"backend/store"
@@ -56,11 +58,12 @@ var (
 )
 
 type Engine struct {
-	Store *store.Store
+	Store  *store.Store
+	Config *config.Config
 }
 
-func NewEngine(s *store.Store) *Engine {
-	return &Engine{Store: s}
+func NewEngine(s *store.Store, cfg *config.Config) *Engine {
+	return &Engine{Store: s, Config: cfg}
 }
 
 type BidRequest struct {
@@ -426,7 +429,23 @@ func (e *Engine) placeBidInternal(listing *model.Listing, shopperID string, bidA
 		return nil, ErrServerError
 	}
 
-	// Phase 5: Return result
+	// Phase 5: Auto-extension check
+	if listing.AutoExtEnabled {
+		now := lifecycle.Now()
+		endTime, _ := time.Parse(time.RFC3339, listing.EndTime)
+		secsRemaining := endTime.Sub(now).Seconds()
+		if secsRemaining >= 0 && secsRemaining <= float64(listing.AutoExtWindowSec) {
+			newEnd := endTime.Add(time.Duration(listing.AutoExtSeconds) * time.Second)
+			if err := e.Store.SetAutoExtended(listing.ListingID, newEnd.Format(time.RFC3339)); err != nil {
+				log.Printf("auto-extension failed for listing %d: %v", listing.ListingID, err)
+			} else {
+				log.Printf("auto-extended listing=%d by %ds (was %s, now %s)",
+					listing.ListingID, listing.AutoExtSeconds, listing.EndTime, newEnd.Format(time.RFC3339))
+			}
+		}
+	}
+
+	// Phase 6: Return result
 	return &BidResult{
 		ListingID:       listing.ListingID,
 		BidID:           newBidID,

@@ -61,7 +61,7 @@ func main() {
 	cfg.SetAutoFinalize(*autoFinalize)
 
 	// Bidding engine
-	eng := bidding.NewEngine(s)
+	eng := bidding.NewEngine(s, cfg)
 
 	// Lifecycle manager
 	ctx, cancel := context.WithCancel(context.Background())

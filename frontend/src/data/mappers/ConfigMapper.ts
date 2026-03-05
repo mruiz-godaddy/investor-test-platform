@@ -9,5 +9,7 @@ export function mapConfig(dto: ConfigDto): ConfigSnapshot {
     autoFinalize: dto.autoFinalize,
     statusTransitionDelayMs: dto.statusTransitionDelayMs,
     finalizerIntervalMs: dto.finalizerIntervalMs,
+    autoExtWindowSec: dto.autoExtWindowSec,
+    autoExtSeconds: dto.autoExtSeconds,
   };
 }

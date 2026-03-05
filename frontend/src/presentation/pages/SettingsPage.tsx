@@ -5,7 +5,7 @@ import DatabasePanel from '../components/settings/DatabasePanel';
 
 export default function SettingsPage() {
   const {
-    config, time, updateConfig, updateTime,
+    config, time, updateConfig, isUpdatingConfig, updateTime,
     wipeDatabase, isWiping,
     exportDatabase, isExporting,
     importDatabase, isImporting,
@@ -15,7 +15,7 @@ export default function SettingsPage() {
     <div>
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h2>
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ConfigForm config={config} onUpdate={updateConfig} />
+        <ConfigForm config={config} onUpdate={updateConfig} isPending={isUpdatingConfig} />
         <TimeControlPanel time={time} onUpdate={updateTime} />
         <DatabasePanel
           onWipe={wipeDatabase}

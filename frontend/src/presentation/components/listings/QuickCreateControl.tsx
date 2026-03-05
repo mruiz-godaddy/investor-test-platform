@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CreateListingRequest } from '../../../domain/entities/Listing';
+import type { ConfigSnapshot } from '../../../domain/entities/ServerConfig';
 import { usdToMicros } from '../../../domain/entities/Price';
 import { buildDomain, randomInt, fetchWordList } from '../../../lib/wordList';
 import { useEffect } from 'react';
@@ -26,10 +27,14 @@ function randomAskingPriceMicros(): number {
   return usdToMicros(ASKING_PRICE_OPTIONS[randomInt(0, ASKING_PRICE_OPTIONS.length - 1)]);
 }
 
-export function buildRandomListing(domain: string, durationMs: number): CreateListingRequest {
+export function buildRandomListing(
+  domain: string,
+  durationMs: number,
+  autoExtEnabled: boolean,
+  config?: ConfigSnapshot,
+): CreateListingRequest {
   const endTime = new Date(Date.now() + durationMs).toISOString();
   const askingPriceUsd = randomAskingPriceMicros();
-  const autoExtEnabled = Math.random() > 0.3;
 
   return {
     domainName: domain,
@@ -37,8 +42,8 @@ export function buildRandomListing(domain: string, durationMs: number): CreateLi
     askingPriceUsd,
     endTime,
     autoExtEnabled,
-    autoExtWindowSec: autoExtEnabled ? 60 : undefined,
-    autoExtSeconds: autoExtEnabled ? [120, 300, 600][randomInt(0, 2)] : undefined,
+    autoExtWindowSec: autoExtEnabled ? (config?.autoExtWindowSec ?? 60) : undefined,
+    autoExtSeconds: autoExtEnabled ? (config?.autoExtSeconds ?? 300) : undefined,
   };
 }
 
@@ -56,6 +61,7 @@ interface InlineProps {
   onSubmit: (req: CreateListingRequest) => void;
   isPending?: boolean;
   variant?: 'inline';
+  config?: ConfigSnapshot;
 }
 
 // --- System setup (empty state) ---
@@ -71,6 +77,7 @@ type Props = InlineProps | ExpandedProps;
 export default function QuickCreateControl(props: Props) {
   const [amount, setAmount] = useState(5);
   const [unit, setUnit] = useState<TimeUnit>('minutes');
+  const [autoExtEnabled, setAutoExtEnabled] = useState(false);
   const words = useWordList();
   const wordsReady = words.length > 0;
 
@@ -99,14 +106,14 @@ export default function QuickCreateControl(props: Props) {
     );
   }
 
-  const { onSubmit, isPending } = props;
+  const { onSubmit, isPending, config: configProp } = props;
   const minVal = UNIT_MIN[unit];
 
   const handleClick = () => {
     const clamped = Math.max(amount, minVal);
     const durationMs = clamped * UNIT_TO_MS[unit];
     const domain = buildDomain(words);
-    onSubmit(buildRandomListing(domain, durationMs));
+    onSubmit(buildRandomListing(domain, durationMs, autoExtEnabled, configProp));
   };
 
   return (
@@ -136,6 +143,15 @@ export default function QuickCreateControl(props: Props) {
             <option value="days">days</option>
           </select>
         </div>
+      </div>
+      <div className="flex items-center gap-1.5 pb-0.5">
+        <input
+          type="checkbox"
+          checked={autoExtEnabled}
+          onChange={(e) => setAutoExtEnabled(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-indigo-600"
+        />
+        <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Auto Ext</label>
       </div>
       <button
         type="button"

@@ -2,6 +2,9 @@ import { useState, type ReactNode } from 'react';
 import type { AdminListing, ListingStatus } from '../../../domain/entities/Listing';
 import ListingRow from './ListingRow';
 import EmptyState from '../shared/EmptyState';
+import Pagination from '../shared/Pagination';
+
+const PAGE_SIZE = 15;
 
 interface Props {
   listings: AdminListing[];
@@ -18,6 +21,7 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
   const [statusFilter, setStatusFilter] = useState<ListingStatus | 'ALL'>('ALL');
   const [sortKey, setSortKey] = useState<SortKey>('endTime');
   const [sortAsc, setSortAsc] = useState(true);
+  const [page, setPage] = useState(1);
 
   const filtered = statusFilter === 'ALL'
     ? listings
@@ -29,6 +33,10 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
     const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number);
     return sortAsc ? cmp : -cmp;
   });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -55,7 +63,7 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
           ] as const).map((s) => (
             <button
               key={s.key}
-              onClick={() => setStatusFilter(s.key)}
+              onClick={() => { setStatusFilter(s.key); setPage(1); }}
               className={`rounded-md px-3 py-1 text-xs font-medium ${
                 statusFilter === s.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
@@ -92,7 +100,7 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
-            {sorted.map((listing) => (
+            {paginated.map((listing) => (
               <ListingRow
                 key={listing.listingId}
                 listing={listing}
@@ -105,6 +113,13 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalItems={sorted.length}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 }

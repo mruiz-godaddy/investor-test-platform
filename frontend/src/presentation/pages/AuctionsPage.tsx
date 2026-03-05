@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useUseCase } from '../hooks/useDiContainer';
+import { GetConfigUseCase } from '../../domain/usecases/GetConfigUseCase';
 import { useAuctionsViewModel } from '../hooks/useAuctionsViewModel';
 import { useListingsViewModel } from '../hooks/useListingsViewModel';
 import ListingsTable from '../components/listings/ListingsTable';
@@ -12,6 +15,11 @@ import type { AdminListing } from '../../domain/entities/Listing';
 
 export default function AuctionsPage() {
   const navigate = useNavigate();
+  const getConfig = useUseCase(GetConfigUseCase);
+  const { data: config } = useQuery({
+    queryKey: ['config'],
+    queryFn: () => getConfig.execute(),
+  });
   const { listings, isLoading, totalCount, openCount, soldCount, closedCount } = useAuctionsViewModel();
   const { shoppers, createListing, setupSystem, isSettingUp, isCreating, updateStatus, updateEndTime, placeSniperBid } = useListingsViewModel();
 
@@ -53,7 +61,7 @@ export default function AuctionsPage() {
             onForceStatus={setStatusTarget}
             onExtendTime={setExtendTarget}
             onSniperBid={setBidTarget}
-            headerRight={<QuickCreateControl onSubmit={createListing} isPending={isCreating} />}
+            headerRight={<QuickCreateControl onSubmit={createListing} isPending={isCreating} config={config} />}
           />
         ) : (
           <QuickCreateControl onSetup={setupSystem} isPending={isSettingUp} variant="expanded" />

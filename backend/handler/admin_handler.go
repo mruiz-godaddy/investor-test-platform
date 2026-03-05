@@ -129,11 +129,11 @@ func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
 	if req.AutoExtEnabled != nil {
 		autoExtEnabled = *req.AutoExtEnabled
 	}
-	autoExtWindowSec := 60
+	autoExtWindowSec := h.Config.GetAutoExtWindowSec()
 	if req.AutoExtWindowSec != nil {
 		autoExtWindowSec = *req.AutoExtWindowSec
 	}
-	autoExtSeconds := 300
+	autoExtSeconds := h.Config.GetAutoExtSeconds()
 	if req.AutoExtSeconds != nil {
 		autoExtSeconds = *req.AutoExtSeconds
 	}
@@ -457,13 +457,15 @@ func (h *AdminHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		AutoFinalize            *bool `json:"autoFinalize"`
 		StatusTransitionDelayMs *int  `json:"statusTransitionDelayMs"`
 		FinalizerIntervalMs     *int  `json:"finalizerIntervalMs"`
+		AutoExtWindowSec        *int  `json:"autoExtWindowSec"`
+		AutoExtSeconds          *int  `json:"autoExtSeconds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteJSON(w, 400, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	h.Config.Update(req.AutoFinalize, req.StatusTransitionDelayMs, req.FinalizerIntervalMs)
+	h.Config.Update(req.AutoFinalize, req.StatusTransitionDelayMs, req.FinalizerIntervalMs, req.AutoExtWindowSec, req.AutoExtSeconds)
 	log.Printf("ADMIN config updated")
 	WriteJSON(w, 200, h.Config.Snapshot())
 }

@@ -25,7 +25,7 @@ func setupAppHandlerTest(t *testing.T) (*AppHandler, *store.Store) {
 	t.Cleanup(func() { database.Close() })
 	s := store.New(database)
 	cfg := config.New()
-	eng := bidding.NewEngine(s)
+	eng := bidding.NewEngine(s, cfg)
 	return NewAppHandler(s, cfg, eng, "", ""), s
 }
 
@@ -38,7 +38,7 @@ func setupWithUpstream(t *testing.T, upstreamHandler http.HandlerFunc) (*AppHand
 	t.Cleanup(func() { database.Close() })
 	s := store.New(database)
 	cfg := config.New()
-	eng := bidding.NewEngine(s)
+	eng := bidding.NewEngine(s, cfg)
 
 	upstream := httptest.NewServer(upstreamHandler)
 	t.Cleanup(upstream.Close)

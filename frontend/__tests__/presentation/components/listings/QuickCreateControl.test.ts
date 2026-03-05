@@ -24,18 +24,18 @@ const VALID_TLDS = ['.com', '.net', '.org', '.co', '.info', '.tv', '.us', '.cc',
 
 describe('buildRandomListing', () => {
   it('produces a valid CreateListingRequest', () => {
-    const result = buildRandomListing('test42.com', 5 * 60_000);
+    const result = buildRandomListing('test42.com', 5 * 60_000, true);
 
     expect(result.domainName).toBe('test42.com');
-    expect(result.sellerShopperId).toBe('shopper-seller');
+    expect(result.sellerShopperId).toBe('shopper-seller-1');
     expect(result.endTime).toBeDefined();
     expect(result.askingPriceUsd).toBeGreaterThan(0);
-    expect(typeof result.autoExtEnabled).toBe('boolean');
+    expect(result.autoExtEnabled).toBe(true);
   });
 
   it('sets endTime in the future', () => {
     const before = Date.now();
-    const result = buildRandomListing('test.com', 10 * 60_000);
+    const result = buildRandomListing('test.com', 10 * 60_000, true);
     const endMs = new Date(result.endTime!).getTime();
 
     // endTime should be ~10 min from now (allow 5s tolerance)
@@ -46,31 +46,36 @@ describe('buildRandomListing', () => {
   it('asking price is a recognized dollar amount in micros', () => {
     const validMicros = [5, 10, 15, 20, 25, 50, 75, 100].map((d) => d * 1_000_000);
     for (let i = 0; i < 50; i++) {
-      const result = buildRandomListing('test.com', 60_000);
+      const result = buildRandomListing('test.com', 60_000, true);
       expect(validMicros).toContain(result.askingPriceUsd);
     }
   });
 
   it('autoExt fields are set when enabled', () => {
-    // Run enough times to get both enabled and disabled
-    const results = Array.from({ length: 100 }, () => buildRandomListing('test.com', 60_000));
+    const enabled = buildRandomListing('test.com', 60_000, true);
+    expect(enabled.autoExtEnabled).toBe(true);
+    expect(enabled.autoExtWindowSec).toBe(60);
+    expect(enabled.autoExtSeconds).toBe(300);
+  });
 
-    const enabled = results.filter((r) => r.autoExtEnabled);
-    const disabled = results.filter((r) => !r.autoExtEnabled);
+  it('autoExt fields use config values when provided', () => {
+    const config = {
+      autoFinalize: true,
+      statusTransitionDelayMs: 0,
+      finalizerIntervalMs: 1000,
+      autoExtWindowSec: 120,
+      autoExtSeconds: 600,
+    };
+    const result = buildRandomListing('test.com', 60_000, true, config);
+    expect(result.autoExtWindowSec).toBe(120);
+    expect(result.autoExtSeconds).toBe(600);
+  });
 
-    // Should get both cases with 100 trials
-    expect(enabled.length).toBeGreaterThan(0);
-    expect(disabled.length).toBeGreaterThan(0);
-
-    for (const r of enabled) {
-      expect(r.autoExtWindowSec).toBe(60);
-      expect([120, 300, 600]).toContain(r.autoExtSeconds);
-    }
-
-    for (const r of disabled) {
-      expect(r.autoExtWindowSec).toBeUndefined();
-      expect(r.autoExtSeconds).toBeUndefined();
-    }
+  it('autoExt fields are undefined when disabled', () => {
+    const disabled = buildRandomListing('test.com', 60_000, false);
+    expect(disabled.autoExtEnabled).toBe(false);
+    expect(disabled.autoExtWindowSec).toBeUndefined();
+    expect(disabled.autoExtSeconds).toBeUndefined();
   });
 });
 

@@ -22,7 +22,7 @@ func setupAdminTest(t *testing.T) *AdminHandler {
 	t.Cleanup(func() { database.Close() })
 	s := store.New(database)
 	cfg := config.New()
-	eng := bidding.NewEngine(s)
+	eng := bidding.NewEngine(s, cfg)
 	return NewAdminHandler(s, cfg, eng, nil) // nil scenario loader
 }
 

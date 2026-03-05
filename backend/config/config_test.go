@@ -19,7 +19,7 @@ func TestUpdate(t *testing.T) {
 	c := New()
 	f := false
 	d := 5000
-	c.Update(&f, &d, nil)
+	c.Update(&f, &d, nil, nil, nil)
 
 	if c.GetAutoFinalize() {
 		t.Error("expected autoFinalize=false after update")
