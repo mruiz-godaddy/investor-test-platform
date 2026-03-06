@@ -1,6 +1,8 @@
 package bidding
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -405,6 +407,176 @@ func TestPlaceBid_IsHighestBidderFalseWhenOutbid(t *testing.T) {
 	}
 	if result.IsHighestBidder {
 		t.Error("expected IsHighestBidder=false when proxy auto-outbids")
+	}
+}
+
+func TestConcurrent_SameListingBidsAreSerialized(t *testing.T) {
+	engine, s := setupTest(t)
+	listingID := createTestListing(t, s, time.Now().UTC().Add(10*time.Minute))
+
+	// Place initial bid so there's a baseline
+	_, err := engine.PlaceBid(BidRequest{
+		ListingID: listingID, ShopperID: "shopper-buyer",
+		UsdBidAmount: 5_000_000, IsTosAccepted: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Fire 10 concurrent bids from different shoppers on the same listing.
+	// With the per-listing lock, exactly one should succeed per price level;
+	// without the lock, multiple goroutines could read the same state and
+	// produce duplicate bids at the same amount.
+	const numBidders = 10
+	shopperIDs := make([]string, numBidders)
+	for i := 0; i < numBidders; i++ {
+		shopperIDs[i] = fmt.Sprintf("concurrent-buyer-%d", i)
+		s.CreateShopper(model.Shopper{
+			ShopperID:  shopperIDs[i],
+			MemberID:   int64(20000 + i),
+			CustomerID: fmt.Sprintf("cust-concurrent-%d", i),
+		})
+	}
+
+	var wg sync.WaitGroup
+	results := make([]*BidResult, numBidders)
+	errors := make([]error, numBidders)
+
+	for i := 0; i < numBidders; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			// All bid $10; the first serialized bid wins, the rest get BID_MIN_NOT_MET
+			// because after the first $10 bid, the next minimum is $10 + $5 = $15.
+			results[idx], errors[idx] = engine.PlaceBid(BidRequest{
+				ListingID:    listingID,
+				ShopperID:    shopperIDs[idx],
+				UsdBidAmount: 10_000_000,
+				IsTosAccepted: true,
+			})
+		}(i)
+	}
+	wg.Wait()
+
+	successCount := 0
+	bidTooLowCount := 0
+	for i := 0; i < numBidders; i++ {
+		if errors[i] == nil {
+			successCount++
+		} else if bidErr, ok := errors[i].(*BidError); ok && bidErr.Code == "BID_MIN_NOT_MET" {
+			bidTooLowCount++
+		}
+	}
+
+	if successCount != 1 {
+		t.Errorf("expected exactly 1 successful bid at $10, got %d", successCount)
+	}
+	if successCount+bidTooLowCount != numBidders {
+		t.Errorf("expected all bids to either succeed or get BID_MIN_NOT_MET, got %d success + %d too-low out of %d",
+			successCount, bidTooLowCount, numBidders)
+	}
+}
+
+func TestConcurrent_DifferentListingsAreIndependent(t *testing.T) {
+	engine, s := setupTest(t)
+	listingA := createTestListing(t, s, time.Now().UTC().Add(10*time.Minute))
+	listingB := createTestListing(t, s, time.Now().UTC().Add(10*time.Minute))
+
+	// Place concurrent bids on two different listings — both should succeed
+	// without blocking each other.
+	var wg sync.WaitGroup
+	var resultA, resultB *BidResult
+	var errA, errB error
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		resultA, errA = engine.PlaceBid(BidRequest{
+			ListingID: listingA, ShopperID: "shopper-buyer",
+			UsdBidAmount: 5_000_000, IsTosAccepted: true,
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		resultB, errB = engine.PlaceBid(BidRequest{
+			ListingID: listingB, ShopperID: "shopper-buyer",
+			UsdBidAmount: 5_000_000, IsTosAccepted: true,
+		})
+	}()
+	wg.Wait()
+
+	if errA != nil {
+		t.Errorf("listing A bid failed: %v", errA)
+	}
+	if errB != nil {
+		t.Errorf("listing B bid failed: %v", errB)
+	}
+	if resultA != nil && resultA.Status != "SUCCESS" {
+		t.Errorf("listing A expected SUCCESS, got %s", resultA.Status)
+	}
+	if resultB != nil && resultB.Status != "SUCCESS" {
+		t.Errorf("listing B expected SUCCESS, got %s", resultB.Status)
+	}
+}
+
+func TestConcurrent_SniperBidsSerialized(t *testing.T) {
+	engine, s := setupTest(t)
+	listingID := createTestListing(t, s, time.Now().UTC().Add(10*time.Minute))
+
+	// Place initial bid
+	_, err := engine.PlaceSniperBid(listingID, "shopper-buyer", 5_000_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Fire concurrent sniper bids at the same price — only one should succeed
+	const numBidders = 5
+	shopperIDs := make([]string, numBidders)
+	for i := 0; i < numBidders; i++ {
+		shopperIDs[i] = fmt.Sprintf("sniper-%d", i)
+		s.CreateShopper(model.Shopper{
+			ShopperID:  shopperIDs[i],
+			MemberID:   int64(30000 + i),
+			CustomerID: fmt.Sprintf("cust-sniper-%d", i),
+		})
+	}
+
+	var wg sync.WaitGroup
+	errors := make([]error, numBidders)
+
+	for i := 0; i < numBidders; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			_, errors[idx] = engine.PlaceSniperBid(listingID, shopperIDs[idx], 10_000_000)
+		}(i)
+	}
+	wg.Wait()
+
+	successCount := 0
+	for i := 0; i < numBidders; i++ {
+		if errors[i] == nil {
+			successCount++
+		}
+	}
+
+	if successCount != 1 {
+		t.Errorf("expected exactly 1 successful sniper bid at $10, got %d", successCount)
+	}
+}
+
+func TestGetLock_ReturnsSameMutexForSameListing(t *testing.T) {
+	engine, _ := setupTest(t)
+
+	lock1 := engine.getLock(123)
+	lock2 := engine.getLock(123)
+	lock3 := engine.getLock(456)
+
+	if lock1 != lock2 {
+		t.Error("expected same mutex for same listing ID")
+	}
+	if lock1 == lock3 {
+		t.Error("expected different mutex for different listing ID")
 	}
 }
 

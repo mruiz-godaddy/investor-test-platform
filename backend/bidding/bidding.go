@@ -2,6 +2,7 @@ package bidding
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -60,10 +61,21 @@ var (
 type Engine struct {
 	Store  *store.Store
 	Config *config.Config
+	locks  map[int64]*sync.Mutex
+	mu     sync.Mutex
 }
 
 func NewEngine(s *store.Store, cfg *config.Config) *Engine {
-	return &Engine{Store: s, Config: cfg}
+	return &Engine{Store: s, Config: cfg, locks: make(map[int64]*sync.Mutex)}
+}
+
+func (e *Engine) getLock(listingID int64) *sync.Mutex {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if _, ok := e.locks[listingID]; !ok {
+		e.locks[listingID] = &sync.Mutex{}
+	}
+	return e.locks[listingID]
 }
 
 type BidRequest struct {
@@ -122,6 +134,10 @@ func (e *Engine) PlaceBid(req BidRequest) (*BidResult, error) {
 		return nil, ErrBidTooLow
 	}
 
+	lock := e.getLock(req.ListingID)
+	lock.Lock()
+	defer lock.Unlock()
+
 	return e.placeBidInternal(listing, req.ShopperID, req.UsdBidAmount)
 }
 
@@ -146,6 +162,10 @@ func (e *Engine) PlaceSniperBid(listingID int64, shopperID string, bidAmountUsd 
 	if bidAmountUsd < listing.AskingPriceUsd {
 		return nil, ErrBidTooLow
 	}
+
+	lock := e.getLock(listingID)
+	lock.Lock()
+	defer lock.Unlock()
 
 	return e.placeBidInternal(listing, shopperID, bidAmountUsd)
 }
