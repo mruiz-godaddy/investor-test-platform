@@ -21,7 +21,7 @@ export default function AuctionsPage() {
     queryFn: () => getConfig.execute(),
   });
   const { listings, isLoading, totalCount, openCount, soldCount, closedCount } = useAuctionsViewModel();
-  const { shoppers, createListing, setupSystem, isSettingUp, isCreating, updateStatus, updateEndTime, placeSniperBid } = useListingsViewModel();
+  const { shoppers, createListing, setupSystem, isSettingUp, isCreating, updateStatus, updateEndTime, placeSniperBid, toggleRadar } = useListingsViewModel();
 
   const [statusTarget, setStatusTarget] = useState<AdminListing | null>(null);
   const [extendTarget, setExtendTarget] = useState<AdminListing | null>(null);
@@ -61,6 +61,7 @@ export default function AuctionsPage() {
             onForceStatus={setStatusTarget}
             onExtendTime={setExtendTarget}
             onSniperBid={setBidTarget}
+            onToggleRadar={(l) => toggleRadar({ id: l.listingId, radarVisible: !l.radarVisible })}
             headerRight={<QuickCreateControl onSubmit={createListing} isPending={isCreating} config={config} />}
           />
         ) : (

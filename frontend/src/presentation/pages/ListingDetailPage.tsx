@@ -52,6 +52,7 @@ export default function ListingDetailPage() {
               ['Created', formatDateTime(listing.createdAt)],
               ['Auto-Extend', listing.autoExtEnabled ? `Yes (${listing.autoExtWindowSec}s / +${listing.autoExtSeconds}s)` : 'No'],
               ['Extended?', listing.isAutoExtended ? 'Yes' : 'No'],
+              ['Radar Visible', listing.radarVisible ? 'Yes' : 'No'],
             ].map(([label, value]) => (
               <div key={String(label)} className="flex justify-between">
                 <dt className="text-gray-500 dark:text-gray-400">{String(label)}</dt>

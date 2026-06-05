@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -70,6 +71,7 @@ func (h *AdminHandler) buildAdminListingJSON(listing *model.Listing) map[string]
 		"autoExtEnabled":       listing.AutoExtEnabled,
 		"autoExtWindowSec":     listing.AutoExtWindowSec,
 		"autoExtSeconds":       listing.AutoExtSeconds,
+		"radarVisible":         listing.RadarVisible,
 		"createdAt":            listing.CreatedAt,
 		"bidHistory":           bidHistory,
 	}
@@ -88,6 +90,7 @@ type createListingRequest struct {
 	AutoExtEnabled   *bool  `json:"autoExtEnabled"`
 	AutoExtWindowSec *int   `json:"autoExtWindowSec"`
 	AutoExtSeconds   *int   `json:"autoExtSeconds"`
+	RadarVisible     *bool  `json:"radarVisible"`
 }
 
 func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +140,10 @@ func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
 	if req.AutoExtSeconds != nil {
 		autoExtSeconds = *req.AutoExtSeconds
 	}
+	radarVisible := false
+	if req.RadarVisible != nil {
+		radarVisible = *req.RadarVisible
+	}
 
 	listing := model.Listing{
 		DomainName:       req.DomainName,
@@ -150,12 +157,19 @@ func (h *AdminHandler) CreateListing(w http.ResponseWriter, r *http.Request) {
 		AutoExtEnabled:   autoExtEnabled,
 		AutoExtWindowSec: autoExtWindowSec,
 		AutoExtSeconds:   autoExtSeconds,
+		RadarVisible:     radarVisible,
 	}
 
 	id, err := h.Store.CreateListing(listing)
 	if err != nil {
 		WriteJSON(w, 500, map[string]string{"error": err.Error()})
 		return
+	}
+
+	// Seed an initial bid on radar-visible listings so they appear in the app's radar tab
+	if radarVisible {
+		h.Store.GetOrCreateShopper("shopper-buyer-1")
+		h.Engine.PlaceSniperBid(id, "shopper-buyer-1", askingPrice)
 	}
 
 	log.Printf("ADMIN created listing=%d domain=%s endTime=%s", id, req.DomainName, endTime)
@@ -289,6 +303,41 @@ func (h *AdminHandler) UpdateEndTime(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("ADMIN listing=%d endTime→%s", id, newEndTime)
+
+	updated, _ := h.Store.GetListing(id)
+	WriteJSON(w, 200, h.buildAdminListingJSON(updated))
+}
+
+// --- 5.4b UpdateRadarVisible — PUT /admin/listings/{id}/radar ---
+
+func (h *AdminHandler) UpdateRadarVisible(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	if err != nil {
+		WriteJSON(w, 400, map[string]string{"error": "invalid listing ID"})
+		return
+	}
+
+	var req struct {
+		RadarVisible bool `json:"radarVisible"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteJSON(w, 400, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	listing, err := h.Store.GetListing(id)
+	if err != nil || listing == nil {
+		WriteJSON(w, 404, map[string]string{"error": "listing not found"})
+		return
+	}
+
+	if err := h.Store.UpdateListingRadarVisible(id, req.RadarVisible); err != nil {
+		WriteJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+
+	log.Printf("ADMIN listing=%d radarVisible→%v", id, req.RadarVisible)
 
 	updated, _ := h.Store.GetListing(id)
 	WriteJSON(w, 200, h.buildAdminListingJSON(updated))
@@ -660,6 +709,29 @@ func pickRandom[T any](items []T) T {
 }
 
 func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
+	// Optional body:
+	//   { "durationMinutes": <int>,   // duration for ALL generated auctions (default 5, must be >= 1)
+	//     "appShopperId": "<id>" }    // when set, a few FINISHED auctions are won/lost by this
+	//                                  // shopper so the app's Won/Lost tabs show real data.
+	durationMin := 5
+	appShopperID := ""
+	if r.Body != nil {
+		var body struct {
+			DurationMinutes *int   `json:"durationMinutes"`
+			AppShopperID    string `json:"appShopperId"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			if body.DurationMinutes != nil {
+				if *body.DurationMinutes < 1 {
+					WriteJSON(w, 400, map[string]string{"error": "durationMinutes must be >= 1"})
+					return
+				}
+				durationMin = *body.DurationMinutes
+			}
+			appShopperID = strings.TrimSpace(body.AppShopperID)
+		}
+	}
+
 	// Clean slate — wipe without seeding legacy defaults
 	h.Store.WipeAll()
 	lifecycle.Reset()
@@ -696,13 +768,14 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 		tld := pickRandom(setupTLDs)
 		domainName := fmt.Sprintf("%s%d%s", word, suffix, tld)
 
-		durationMin := 5 + i // A=5min, B=6min, ..., Z=30min
+		// All generated auctions share the configured duration (default 5 min).
 		endTime := now.Add(time.Duration(durationMin) * time.Minute).Format(time.RFC3339)
 
 		askingPrice := pickRandom(setupAskingPrices)
 		autoExtEnabled := rand.Float64() > 0.3
 		autoExtWindowSec := 60
 		autoExtSeconds := []int{120, 300, 600}[rand.Intn(3)]
+		radarVisible := rand.Float64() > 0.6
 
 		listing := model.Listing{
 			DomainName:       domainName,
@@ -716,12 +789,20 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 			AutoExtEnabled:   autoExtEnabled,
 			AutoExtWindowSec: autoExtWindowSec,
 			AutoExtSeconds:   autoExtSeconds,
+			RadarVisible:     radarVisible,
 		}
 
 		id, err := h.Store.CreateListing(listing)
 		if err != nil {
 			WriteJSON(w, 500, map[string]string{"error": fmt.Sprintf("create listing %s: %v", domainName, err)})
 			return
+		}
+
+		// Seed an initial bid on radar-visible listings so they appear in the app's radar tab
+		if radarVisible {
+			buyers := []string{"shopper-buyer-1", "shopper-buyer-2", "shopper-buyer-3", "shopper-buyer-4", "shopper-buyer-5"}
+			buyer := buyers[rand.Intn(len(buyers))]
+			h.Engine.PlaceSniperBid(id, buyer, askingPrice)
 		}
 
 		createdListings = append(createdListings, map[string]interface{}{
@@ -732,12 +813,56 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Optional: assign a few REAL finished auctions to the app user's shopper so the Won/Lost
+	// tabs show genuine data (won = SOLD + this shopper is highest bidder; lost = SOLD + this
+	// shopper bid but someone else won).
+	wonCount, lostCount := 0, 0
+	if appShopperID != "" {
+		h.Store.GetOrCreateShopper(appShopperID)
+		startPast := now.Add(-2 * time.Hour).Format(time.RFC3339)
+		endPast := now.Add(-1 * time.Hour).Format(time.RFC3339)
+		mkFinished := func(domain string, winningBid int64) (int64, bool) {
+			id, err := h.Store.CreateListing(model.Listing{
+				DomainName: domain, ListingStatus: model.StatusOpen, ListingType: "EXPIRY_AUCTIONS",
+				AuctionTypeID: 16, StartTime: startPast, EndTime: endPast,
+				AskingPriceUsd: 5_000_000, SellerShopperID: "shopper-seller-1",
+			})
+			if err != nil {
+				return 0, false
+			}
+			return id, true
+		}
+		// WON: app shopper is the highest (only) bidder, then the auction is SOLD.
+		for n := 1; n <= 3; n++ {
+			if id, ok := mkFinished(fmt.Sprintf("won-domain-%d.com", n), 5_000_000); ok {
+				if _, err := h.Engine.PlaceSniperBid(id, appShopperID, 5_000_000); err == nil {
+					h.Store.UpdateListingStatus(id, "SOLD", 5_000_000)
+					wonCount++
+				}
+			}
+		}
+		// LOST: app shopper bids, another buyer outbids, then the auction is SOLD.
+		for n := 1; n <= 2; n++ {
+			if id, ok := mkFinished(fmt.Sprintf("lost-domain-%d.com", n), 10_000_000); ok {
+				h.Engine.PlaceSniperBid(id, appShopperID, 5_000_000)
+				if _, err := h.Engine.PlaceSniperBid(id, "shopper-buyer-2", 10_000_000); err == nil {
+					h.Store.UpdateListingStatus(id, "SOLD", 10_000_000)
+					lostCount++
+				}
+			}
+		}
+		log.Printf("ADMIN setup — assigned %d won + %d lost to appShopper=%s", wonCount, lostCount, appShopperID)
+	}
+
 	log.Printf("ADMIN setup — 8 shoppers (3 sellers + 5 buyers) + 26 listings created")
 	WriteJSON(w, 200, map[string]interface{}{
-		"status":   "ready",
-		"shoppers": len(shoppers),
-		"listings": len(createdListings),
-		"details":  createdListings,
+		"status":       "ready",
+		"shoppers":     len(shoppers),
+		"listings":     len(createdListings),
+		"appShopperId": appShopperID,
+		"won":          wonCount,
+		"lost":         lostCount,
+		"details":      createdListings,
 	})
 }
 

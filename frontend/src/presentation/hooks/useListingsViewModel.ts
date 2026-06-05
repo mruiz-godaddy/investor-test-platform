@@ -5,6 +5,7 @@ import { CreateListingUseCase } from '../../domain/usecases/CreateListingUseCase
 import { UpdateListingStatusUseCase } from '../../domain/usecases/UpdateListingStatusUseCase';
 import { UpdateEndTimeUseCase } from '../../domain/usecases/UpdateEndTimeUseCase';
 import { PlaceSniperBidUseCase } from '../../domain/usecases/PlaceSniperBidUseCase';
+import { UpdateRadarVisibleUseCase } from '../../domain/usecases/UpdateRadarVisibleUseCase';
 import { GetShoppersUseCase } from '../../domain/usecases/GetShoppersUseCase';
 import { SetupSystemUseCase } from '../../domain/usecases/SetupSystemUseCase';
 import type { CreateListingRequest, ListingStatus } from '../../domain/entities/Listing';
@@ -19,6 +20,7 @@ export function useListingsViewModel() {
   const updateStatus = useUseCase(UpdateListingStatusUseCase);
   const updateEndTime = useUseCase(UpdateEndTimeUseCase);
   const placeSniperBid = useUseCase(PlaceSniperBidUseCase);
+  const updateRadarVisible = useUseCase(UpdateRadarVisibleUseCase);
   const getShoppers = useUseCase(GetShoppersUseCase);
   const setupSystem = useUseCase(SetupSystemUseCase);
 
@@ -41,7 +43,8 @@ export function useListingsViewModel() {
   });
 
   const setupMutation = useMutation({
-    mutationFn: () => setupSystem.execute(),
+    mutationFn: (opts: { durationMinutes?: number; appShopperId?: string } = {}) =>
+      setupSystem.execute(opts.durationMinutes, opts.appShopperId),
     onSuccess: (data) => {
       invalidateAll();
       addToast({ type: 'success', message: `System ready: ${data.shoppers} shoppers + ${data.listings} listings` });
@@ -65,6 +68,12 @@ export function useListingsViewModel() {
     onSuccess: invalidateAll,
   });
 
+  const radarMutation = useMutation({
+    mutationFn: ({ id, radarVisible }: { id: number; radarVisible: boolean }) =>
+      updateRadarVisible.execute(id, radarVisible),
+    onSuccess: invalidateAll,
+  });
+
   return {
     listings,
     shoppers,
@@ -76,5 +85,6 @@ export function useListingsViewModel() {
     updateStatus: statusMutation.mutate,
     updateEndTime: endTimeMutation.mutate,
     placeSniperBid: sniperBidMutation.mutate,
+    toggleRadar: radarMutation.mutate,
   };
 }

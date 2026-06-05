@@ -11,7 +11,7 @@ import type { AdminListing } from '../../domain/entities/Listing';
 
 export default function ListingsPage() {
   const navigate = useNavigate();
-  const { listings, shoppers, isLoading, createListing, updateStatus, updateEndTime, placeSniperBid } = useListingsViewModel();
+  const { listings, shoppers, isLoading, createListing, updateStatus, updateEndTime, placeSniperBid, toggleRadar } = useListingsViewModel();
 
   const [showCreate, setShowCreate] = useState(false);
   const [statusTarget, setStatusTarget] = useState<AdminListing | null>(null);
@@ -38,6 +38,7 @@ export default function ListingsPage() {
           onForceStatus={setStatusTarget}
           onExtendTime={setExtendTarget}
           onSniperBid={setBidTarget}
+          onToggleRadar={(l) => toggleRadar({ id: l.listingId, radarVisible: !l.radarVisible })}
         />
       </div>
 

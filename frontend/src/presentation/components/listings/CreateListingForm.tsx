@@ -30,6 +30,7 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
   const [autoExtEnabled, setAutoExtEnabled] = useState(DEFAULT_AUTO_EXT_ENABLED);
   const [autoExtWindowSec, setAutoExtWindowSec] = useState(DEFAULT_AUTO_EXT_WINDOW_SEC);
   const [autoExtSeconds, setAutoExtSeconds] = useState(DEFAULT_AUTO_EXT_SECONDS);
+  const [radarVisible, setRadarVisible] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +45,7 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
       autoExtEnabled,
       autoExtWindowSec,
       autoExtSeconds,
+      radarVisible,
     });
     setDomainName('');
     onClose();
@@ -97,6 +99,11 @@ export default function CreateListingForm({ open, onClose, onSubmit, shoppers }:
                 <input type="checkbox" checked={autoExtEnabled} onChange={(e) => setAutoExtEnabled(e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-indigo-600" />
                 <label className="text-sm text-gray-700 dark:text-gray-200">Auto-Extend</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={radarVisible} onChange={(e) => setRadarVisible(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-amber-600" />
+                <label className="text-sm text-gray-700 dark:text-gray-200">Radar</label>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Window (s)</label>

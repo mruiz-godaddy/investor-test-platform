@@ -12,12 +12,13 @@ interface Props {
   onForceStatus: (listing: AdminListing) => void;
   onExtendTime: (listing: AdminListing) => void;
   onSniperBid: (listing: AdminListing) => void;
+  onToggleRadar: (listing: AdminListing) => void;
   headerRight?: ReactNode;
 }
 
 type SortKey = 'domainName' | 'endTime' | 'currentPriceUsd' | 'bidsCount';
 
-export default function ListingsTable({ listings, onRowClick, onForceStatus, onExtendTime, onSniperBid, headerRight }: Props) {
+export default function ListingsTable({ listings, onRowClick, onForceStatus, onExtendTime, onSniperBid, onToggleRadar, headerRight }: Props) {
   const [statusFilter, setStatusFilter] = useState<ListingStatus | 'ALL'>('ALL');
   const [sortKey, setSortKey] = useState<SortKey>('endTime');
   const [sortAsc, setSortAsc] = useState(true);
@@ -108,6 +109,7 @@ export default function ListingsTable({ listings, onRowClick, onForceStatus, onE
                 onForceStatus={onForceStatus}
                 onExtendTime={onExtendTime}
                 onSniperBid={onSniperBid}
+                onToggleRadar={onToggleRadar}
               />
             ))}
           </tbody>

@@ -33,6 +33,11 @@ export class ListingRepositoryImpl implements IListingRepository {
     return mapAdminListing(dto);
   }
 
+  async updateRadarVisible(id: number, radarVisible: boolean): Promise<AdminListing> {
+    const dto = await this.ds.updateRadarVisible(id, radarVisible);
+    return mapAdminListing(dto);
+  }
+
   async placeSniperBid(id: number, shopperId: string, bidAmountUsd: number): Promise<BidResult> {
     return this.ds.placeSniperBid(id, { shopperId, bidAmountUsd });
   }

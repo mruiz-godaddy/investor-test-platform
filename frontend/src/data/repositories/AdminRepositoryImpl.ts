@@ -6,8 +6,8 @@ import { AdminApiDataSource } from '../datasources/AdminApiDataSource';
 export class AdminRepositoryImpl implements IAdminRepository {
   constructor(private ds: AdminApiDataSource) {}
 
-  async setupSystem(): Promise<SetupResult> {
-    return this.ds.setupSystem();
+  async setupSystem(durationMinutes?: number, appShopperId?: string): Promise<SetupResult> {
+    return this.ds.setupSystem(durationMinutes, appShopperId);
   }
 
   async resetDatabase(): Promise<{ status: string }> {

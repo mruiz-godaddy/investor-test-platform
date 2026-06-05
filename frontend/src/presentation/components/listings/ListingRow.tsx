@@ -9,9 +9,10 @@ interface Props {
   onForceStatus: (listing: AdminListing) => void;
   onExtendTime: (listing: AdminListing) => void;
   onSniperBid: (listing: AdminListing) => void;
+  onToggleRadar: (listing: AdminListing) => void;
 }
 
-export default function ListingRow({ listing, onClick, onForceStatus, onExtendTime, onSniperBid }: Props) {
+export default function ListingRow({ listing, onClick, onForceStatus, onExtendTime, onSniperBid, onToggleRadar }: Props) {
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" onClick={onClick}>
       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{listing.domainName}</td>
@@ -45,6 +46,16 @@ export default function ListingRow({ listing, onClick, onForceStatus, onExtendTi
             className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             Bid
+          </button>
+          <button
+            onClick={() => onToggleRadar(listing)}
+            className={`rounded-full px-2 py-1 text-xs font-semibold transition-colors ${
+              listing.radarVisible
+                ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            Radar
           </button>
         </div>
       </td>

@@ -27,6 +27,7 @@ export interface AdminListing {
   autoExtEnabled: boolean;
   autoExtWindowSec: number;
   autoExtSeconds: number;
+  radarVisible: boolean;
   createdAt: string;
   bidHistory: AdminBid[];
 }
@@ -42,6 +43,7 @@ export interface CreateListingRequest {
   autoExtEnabled?: boolean;
   autoExtWindowSec?: number;
   autoExtSeconds?: number;
+  radarVisible?: boolean;
 }
 
 export interface CreateListingResponse {

@@ -32,6 +32,7 @@ export function buildRandomListing(
   durationMs: number,
   autoExtEnabled: boolean,
   config?: ConfigSnapshot,
+  radarVisible?: boolean,
 ): CreateListingRequest {
   const endTime = new Date(Date.now() + durationMs).toISOString();
   const askingPriceUsd = randomAskingPriceMicros();
@@ -44,6 +45,7 @@ export function buildRandomListing(
     autoExtEnabled,
     autoExtWindowSec: autoExtEnabled ? (config?.autoExtWindowSec ?? 60) : undefined,
     autoExtSeconds: autoExtEnabled ? (config?.autoExtSeconds ?? 300) : undefined,
+    radarVisible: radarVisible || undefined,
   };
 }
 
@@ -67,10 +69,13 @@ interface InlineProps {
 // --- System setup (empty state) ---
 
 interface ExpandedProps {
-  onSetup: () => void;
+  onSetup: (opts: { durationMinutes: number; appShopperId?: string }) => void;
   isPending?: boolean;
   variant: 'expanded';
 }
+
+// App shopper id persists across setups (prefilled until the user changes it).
+const APP_SHOPPER_ID_KEY = 'emulatorAppShopperId';
 
 type Props = InlineProps | ExpandedProps;
 
@@ -78,11 +83,15 @@ export default function QuickCreateControl(props: Props) {
   const [amount, setAmount] = useState(5);
   const [unit, setUnit] = useState<TimeUnit>('minutes');
   const [autoExtEnabled, setAutoExtEnabled] = useState(false);
+  const [radarVisible, setRadarVisible] = useState(false);
+  const [setupMinutes, setSetupMinutes] = useState(5);
+  const [appShopperId, setAppShopperId] = useState(() => localStorage.getItem(APP_SHOPPER_ID_KEY) ?? '');
   const words = useWordList();
   const wordsReady = words.length > 0;
 
   if (props.variant === 'expanded') {
     const { onSetup, isPending } = props;
+    const setupMinsValid = Number.isFinite(setupMinutes) && setupMinutes >= 1;
     return (
       <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-950 py-12 px-6">
         <svg className="h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -91,17 +100,53 @@ export default function QuickCreateControl(props: Props) {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No biddings yet</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
           Set up the system with 8 shoppers (3 sellers + 5 buyers) and 26 auctions (A-Z),
-          each with a unique domain and staggered end times from 5 to 30 minutes.
+          each with a unique domain. All auctions use the duration below (default 5 minutes).
         </p>
+        <div className="flex flex-col items-center gap-1">
+          <label htmlFor="setup-duration" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Auction duration (minutes)
+          </label>
+          <input
+            id="setup-duration"
+            type="number"
+            min={1}
+            step={1}
+            value={setupMinutes}
+            onChange={(e) => setSetupMinutes(Math.max(1, Math.floor(Number(e.target.value))))}
+            className="w-28 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm text-center tabular-nums"
+          />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <label htmlFor="setup-app-shopper" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            App shopper ID (for Won/Lost) — optional
+          </label>
+          <input
+            id="setup-app-shopper"
+            type="text"
+            placeholder="e.g. 1251418"
+            value={appShopperId}
+            onChange={(e) => setAppShopperId(e.target.value)}
+            className="w-56 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white px-2 py-1.5 text-sm text-center"
+          />
+        </div>
         <button
           type="button"
-          onClick={onSetup}
-          disabled={isPending}
+          onClick={() => {
+            const trimmed = appShopperId.trim();
+            // Persist so it prefills next time; the user can still change it.
+            if (trimmed) localStorage.setItem(APP_SHOPPER_ID_KEY, trimmed);
+            else localStorage.removeItem(APP_SHOPPER_ID_KEY);
+            onSetup({ durationMinutes: setupMinsValid ? setupMinutes : 5, appShopperId: trimmed || undefined });
+          }}
+          disabled={isPending || !setupMinsValid}
           className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
         >
           {isPending ? 'Setting up...' : 'Setup System'}
         </button>
-        <p className="text-xs text-gray-400 dark:text-gray-500">8 shoppers + 26 listings (A = 5 min ... Z = 30 min)</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          8 shoppers + 26 listings · all end in {setupMinsValid ? setupMinutes : 5} min
+          {appShopperId.trim() ? ` · won/lost → ${appShopperId.trim()}` : ''}
+        </p>
       </div>
     );
   }
@@ -113,7 +158,7 @@ export default function QuickCreateControl(props: Props) {
     const clamped = Math.max(amount, minVal);
     const durationMs = clamped * UNIT_TO_MS[unit];
     const domain = buildDomain(words);
-    onSubmit(buildRandomListing(domain, durationMs, autoExtEnabled, configProp));
+    onSubmit(buildRandomListing(domain, durationMs, autoExtEnabled, configProp, radarVisible));
   };
 
   return (
@@ -152,6 +197,15 @@ export default function QuickCreateControl(props: Props) {
           className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-indigo-600"
         />
         <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Auto Ext</label>
+      </div>
+      <div className="flex items-center gap-1.5 pb-0.5">
+        <input
+          type="checkbox"
+          checked={radarVisible}
+          onChange={(e) => setRadarVisible(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-indigo-600"
+        />
+        <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Radar</label>
       </div>
       <button
         type="button"

@@ -31,14 +31,14 @@ const listingColumns = `listing_id, domain_name, listing_status, listing_type, a
 	start_time, end_time, asking_price_usd, current_price_usd, sale_price_usd,
 	next_bid_price_usd, bidders_count, bids_count, is_auto_extended,
 	seller_shopper_id, highest_bidder_shopper, auto_ext_window_sec, auto_ext_seconds,
-	auto_ext_enabled, created_at`
+	auto_ext_enabled, radar_visible, created_at`
 
 // scanListing scans a listing row into a model.Listing.
 func scanListing(scanner interface {
 	Scan(dest ...interface{}) error
 }) (*model.Listing, error) {
 	var l model.Listing
-	var isAutoExtended, autoExtEnabled int
+	var isAutoExtended, autoExtEnabled, radarVisible int
 	var salePrice sql.NullInt64
 	var highestBidder sql.NullString
 
@@ -62,6 +62,7 @@ func scanListing(scanner interface {
 		&l.AutoExtWindowSec,
 		&l.AutoExtSeconds,
 		&autoExtEnabled,
+		&radarVisible,
 		&l.CreatedAt,
 	)
 	if err != nil {
@@ -70,6 +71,7 @@ func scanListing(scanner interface {
 
 	l.IsAutoExtended = intToBool(isAutoExtended)
 	l.AutoExtEnabled = intToBool(autoExtEnabled)
+	l.RadarVisible = intToBool(radarVisible)
 
 	if salePrice.Valid {
 		v := salePrice.Int64
@@ -191,14 +193,14 @@ func (s *Store) CreateListing(l model.Listing) (int64, error) {
 			sale_price_usd, next_bid_price_usd,
 			bidders_count, bids_count, is_auto_extended,
 			seller_shopper_id, highest_bidder_shopper,
-			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled, radar_visible
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.DomainName, l.ListingStatus, l.ListingType, l.AuctionTypeID,
 		l.StartTime, l.EndTime, l.AskingPriceUsd, l.AskingPriceUsd,
 		l.SalePriceUsd, l.AskingPriceUsd,
 		l.BiddersCount, l.BidsCount, boolToInt(l.IsAutoExtended),
 		l.SellerShopperID, sql.NullString{String: l.HighestBidderShopper, Valid: l.HighestBidderShopper != ""},
-		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled),
+		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled), boolToInt(l.RadarVisible),
 	)
 	if err != nil {
 		return 0, err
@@ -499,14 +501,14 @@ func (s *Store) ImportListing(l model.Listing) error {
 			sale_price_usd, next_bid_price_usd,
 			bidders_count, bids_count, is_auto_extended,
 			seller_shopper_id, highest_bidder_shopper,
-			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			auto_ext_window_sec, auto_ext_seconds, auto_ext_enabled, radar_visible, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.ListingID, l.DomainName, l.ListingStatus, l.ListingType, l.AuctionTypeID,
 		l.StartTime, l.EndTime, l.AskingPriceUsd, l.CurrentPriceUsd,
 		l.SalePriceUsd, l.NextBidPriceUsd,
 		l.BiddersCount, l.BidsCount, boolToInt(l.IsAutoExtended),
 		l.SellerShopperID, sql.NullString{String: l.HighestBidderShopper, Valid: l.HighestBidderShopper != ""},
-		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled), l.CreatedAt,
+		l.AutoExtWindowSec, l.AutoExtSeconds, boolToInt(l.AutoExtEnabled), boolToInt(l.RadarVisible), l.CreatedAt,
 	)
 	return err
 }
@@ -527,7 +529,7 @@ func (s *Store) GetWonListingsForShopper(shopperID string) ([]model.Listing, err
 			l.start_time, l.end_time, l.asking_price_usd, l.current_price_usd, l.sale_price_usd,
 			l.next_bid_price_usd, l.bidders_count, l.bids_count, l.is_auto_extended,
 			l.seller_shopper_id, l.highest_bidder_shopper, l.auto_ext_window_sec, l.auto_ext_seconds,
-			l.auto_ext_enabled, l.created_at
+			l.auto_ext_enabled, l.radar_visible, l.created_at
 		 FROM listings l
 		 WHERE l.listing_status = 'SOLD'
 		   AND l.highest_bidder_shopper = ?
@@ -558,7 +560,7 @@ func (s *Store) GetLostListingsForShopper(shopperID string) ([]model.Listing, er
 			l.start_time, l.end_time, l.asking_price_usd, l.current_price_usd, l.sale_price_usd,
 			l.next_bid_price_usd, l.bidders_count, l.bids_count, l.is_auto_extended,
 			l.seller_shopper_id, l.highest_bidder_shopper, l.auto_ext_window_sec, l.auto_ext_seconds,
-			l.auto_ext_enabled, l.created_at
+			l.auto_ext_enabled, l.radar_visible, l.created_at
 		 FROM listings l
 		 WHERE l.listing_status IN ('SOLD', 'CLOSED')
 		   AND (l.highest_bidder_shopper IS NULL OR l.highest_bidder_shopper != ?)
@@ -602,6 +604,35 @@ func (s *Store) SearchListingsByDomain(query string) ([]model.Listing, error) {
 		listings = append(listings, *l)
 	}
 	return listings, rows.Err()
+}
+
+// GetRadarListings returns OPEN listings where radar_visible = 1.
+func (s *Store) GetRadarListings() ([]model.Listing, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT `+listingColumns+` FROM listings WHERE listing_status = 'OPEN' AND radar_visible = 1 ORDER BY listing_id`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listings []model.Listing
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		listings = append(listings, *l)
+	}
+	return listings, rows.Err()
+}
+
+func (s *Store) UpdateListingRadarVisible(listingID int64, visible bool) error {
+	_, err := s.DB.Conn.Exec(
+		`UPDATE listings SET radar_visible = ? WHERE listing_id = ?`,
+		boolToInt(visible), listingID,
+	)
+	return err
 }
 
 // WipeAll drops all tables and recreates them without seeding.

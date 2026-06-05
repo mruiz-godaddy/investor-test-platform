@@ -39,6 +39,7 @@ type Listing struct {
 	AutoExtWindowSec     int    `json:"autoExtWindowSec"`
 	AutoExtSeconds       int    `json:"autoExtSeconds"`
 	AutoExtEnabled       bool   `json:"autoExtEnabled"`
+	RadarVisible         bool   `json:"radarVisible"`
 	CreatedAt            string `json:"createdAt"`
 }
 

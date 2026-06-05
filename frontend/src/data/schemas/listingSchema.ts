@@ -21,6 +21,7 @@ export const adminListingSchema = z.object({
   autoExtEnabled: z.boolean(),
   autoExtWindowSec: z.number(),
   autoExtSeconds: z.number(),
+  radarVisible: z.boolean(),
   createdAt: z.string(),
   bidHistory: z.array(adminBidSchema),
 });
@@ -66,6 +67,7 @@ export const createListingRequestSchema = z.object({
   autoExtEnabled: z.boolean().optional(),
   autoExtWindowSec: z.number().optional(),
   autoExtSeconds: z.number().optional(),
+  radarVisible: z.boolean().optional(),
 });
 
 export const createListingResponseSchema = z.object({

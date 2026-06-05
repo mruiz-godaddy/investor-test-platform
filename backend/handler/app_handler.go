@@ -69,37 +69,60 @@ func (h *AppHandler) GetListing(w http.ResponseWriter, r *http.Request) {
 func (h *AppHandler) GetBiddingListings(w http.ResponseWriter, r *http.Request) {
 	shopper, err := ResolveShopper(r, h.Store)
 	if err != nil {
-		WriteError(w, "MISSING_SHOPPER", err.Error(), 400)
-		return
+		// Local-test fallback: the real SSO JWT can't always be mapped to an emulator shopper.
+		// Use a default buyer so the Bidding tab still populates instead of 400 MISSING_SHOPPER.
+		shopper, _ = h.Store.GetOrCreateShopper("shopper-buyer-1")
 	}
 
 	allListings, _ := h.Store.ListListings()
 	var result []map[string]interface{}
-	for _, listing := range allListings {
-		hasBid, _ := h.Store.HasShopperBidOnListing(shopper.ShopperID, listing.ListingID)
-		if hasBid {
-			result = append(result, h.buildListingJSON(&listing, shopper))
+	if shopper != nil {
+		for _, listing := range allListings {
+			hasBid, _ := h.Store.HasShopperBidOnListing(shopper.ShopperID, listing.ListingID)
+			if hasBid {
+				result = append(result, h.buildListingJSON(&listing, shopper))
+			}
 		}
 	}
 
-	// No local results → forward entirely to upstream
-	if len(result) == 0 && h.AuctionUpstream != "" {
-		if proxyToUpstream(h.AuctionUpstream, w, r) {
-			return
-		}
-	}
-
-	// Local results exist → merge with upstream (local wins on dupes)
-	if len(result) > 0 && h.AuctionUpstream != "" {
-		upstreamItems, err := fetchUpstreamListings(h.AuctionUpstream, "/v1/aftermarket/domains/bidding", r)
-		if err == nil && upstreamItems != nil {
-			result = mergeListings(result, upstreamItems)
+	// Local-test fallback: when the resolved shopper has no bids, surface OPEN auctions so the
+	// app's Bidding tab is non-empty and bid flows can be driven end-to-end. Returns local only
+	// (no upstream proxy/merge) to stay fast and fully controllable.
+	if len(result) == 0 {
+		for i := range allListings {
+			if allListings[i].ListingStatus == model.StatusOpen {
+				result = append(result, h.buildListingJSON(&allListings[i], shopper))
+			}
 		}
 	}
 
 	if result == nil {
 		result = []map[string]interface{}{}
 	}
+	WriteJSON(w, 200, map[string]interface{}{
+		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
+		"viewType":        "SNAPSHOT",
+		"listings":        result,
+	})
+}
+
+// GetWatchlistListings handles GET /v1/aftermarket/domains/watches
+// Local-test helper: surfaces OPEN listings so the app's Watchlist tab is non-empty and
+// watchlist bid / buy-it-now flows can be driven. Returns local only (no upstream).
+func (h *AppHandler) GetWatchlistListings(w http.ResponseWriter, r *http.Request) {
+	shopper, err := ResolveShopper(r, h.Store)
+	if err != nil {
+		shopper, _ = h.Store.GetOrCreateShopper("shopper-buyer-1")
+	}
+
+	allListings, _ := h.Store.ListListings()
+	result := make([]map[string]interface{}, 0, len(allListings))
+	for i := range allListings {
+		if allListings[i].ListingStatus == model.StatusOpen {
+			result = append(result, h.buildListingJSON(&allListings[i], shopper))
+		}
+	}
+
 	WriteJSON(w, 200, map[string]interface{}{
 		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
 		"viewType":        "SNAPSHOT",
@@ -163,30 +186,14 @@ func (h *AppHandler) GetWonListings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Won listings are REAL: SOLD auctions the resolved shopper actually won. Assign them at
+	// setup via POST /admin/setup { "appShopperId": "<id>" }. No OPEN-listing fallback here.
 	listings, _ := h.Store.GetWonListingsForShopper(shopper.ShopperID)
-	var result []map[string]interface{}
+	result := make([]map[string]interface{}, 0, len(listings))
 	for _, l := range listings {
 		result = append(result, h.buildWonListingJSON(&l))
 	}
 
-	// No local results → forward entirely to upstream
-	if len(result) == 0 && h.AuctionUpstream != "" {
-		if proxyToUpstream(h.AuctionUpstream, w, r) {
-			return
-		}
-	}
-
-	// Local results exist → merge with upstream (local wins on dupes)
-	if len(result) > 0 && h.AuctionUpstream != "" {
-		upstreamItems, err := fetchUpstreamListings(h.AuctionUpstream, "/v1/aftermarket/domains/won", r)
-		if err == nil && upstreamItems != nil {
-			result = mergeListings(result, upstreamItems)
-		}
-	}
-
-	if result == nil {
-		result = []map[string]interface{}{}
-	}
 	WriteJSON(w, 200, map[string]interface{}{
 		"lastUpdatedTime": lifecycle.Now().Format(time.RFC3339),
 		"viewType":        "SNAPSHOT",
@@ -234,33 +241,49 @@ func (h *AppHandler) GetLostListings(w http.ResponseWriter, r *http.Request) {
 }
 
 // SearchListings handles GET /v4/aftermarket/find/auction/recommend
+// With query param: searches by domain name. Without: returns radar-visible listings.
 func (h *AppHandler) SearchListings(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 
-	// Only search local DB when there's an actual query
+	// Radar (the app's recommend feed) sends no query; search sends a query.
+	isRadar := query == ""
+
 	var result []map[string]interface{}
 	if query != "" {
 		listings, _ := h.Store.SearchListingsByDomain(query)
 		for _, l := range listings {
 			result = append(result, h.buildSearchResultJSON(&l))
 		}
+	} else {
+		listings, _ := h.Store.GetRadarListings()
+		for _, l := range listings {
+			result = append(result, h.buildSearchResultJSON(&l))
+		}
 	}
 
-	// If no local results, try forwarding entirely to find-upstream
+	// Radar feed is fully controlled by the posted radar domains: serve ONLY those.
+	// Merging/proxying the full upstream recommend feed (~500 items, multi-second) makes the
+	// app's radar request time out (DomainRadarFindRequest onFailure -1), so radar never shows
+	// the posted domains. Keep it small and fast; post radar domains via PUT /admin/listings/{id}/radar.
+	if isRadar {
+		if result == nil {
+			result = []map[string]interface{}{}
+		}
+		WriteJSON(w, 200, map[string]interface{}{"results": result})
+		return
+	}
+
+	// --- Search path (query present): fall back to / merge with the real Find upstream ---
+	// If no local results, forward entirely to find-upstream.
 	if len(result) == 0 && h.FindUpstream != "" {
 		if proxyToUpstream(h.FindUpstream, w, r) {
 			return
 		}
 	}
 
-	// If we have local results, merge with upstream (local wins on dupes)
-	if len(result) > 0 && h.FindUpstream != "" {
-		upstreamItems, err := fetchUpstreamSearchResults(h.FindUpstream, r)
-		if err == nil && upstreamItems != nil {
-			result = mergeListings(result, upstreamItems)
-		}
-	}
-
+	// Local matches exist → return ONLY those (no upstream merge). Merging the full ~500-item
+	// upstream feed is large/slow and can make the app's search request time out, hiding the
+	// emulator's controllable domains. Keep search fast and deterministic.
 	if result == nil {
 		result = []map[string]interface{}{}
 	}
@@ -428,6 +451,16 @@ func listingStatusToInt(status string) int {
 	}
 }
 
+// priceTypeForListing maps a listing to the app's PriceType. BIN listings (ListingType
+// "BUY_IT_NOW"/"BIN") render as buy-it-now; everything else is a biddable AUCTION. Without
+// this the app defaulted empty priceType to a "$0 Buy Now" row that exposes no bid action.
+func priceTypeForListing(l *model.Listing) string {
+	if strings.EqualFold(l.ListingType, "BUY_IT_NOW") || strings.EqualFold(l.ListingType, "BIN") {
+		return "BUY_IT_NOW"
+	}
+	return "AUCTION"
+}
+
 func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Shopper) map[string]interface{} {
 	// Fetch bids for bid history
 	bids, _ := h.Store.GetActiveBidsForListing(listing.ListingID)
@@ -500,7 +533,7 @@ func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Sho
 		"traffic":               0,
 		"visits":                0,
 		"watchers":              0,
-		"priceType":             "",
+		"priceType":             priceTypeForListing(listing),
 		"eventName":             "",
 		"expireDate":            "",
 		"estimatedTransferTime": "",

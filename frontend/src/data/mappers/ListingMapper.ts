@@ -26,6 +26,7 @@ export function mapAdminListing(dto: AdminListingDto): AdminListing {
     autoExtEnabled: dto.autoExtEnabled,
     autoExtWindowSec: dto.autoExtWindowSec,
     autoExtSeconds: dto.autoExtSeconds,
+    radarVisible: dto.radarVisible,
     createdAt: dto.createdAt,
     bidHistory: dto.bidHistory.map(mapAdminBid),
   };

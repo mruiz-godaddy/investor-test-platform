@@ -8,5 +8,6 @@ export interface IListingRepository {
   create(req: CreateListingRequest): Promise<CreateListingResponse>;
   updateStatus(id: number, status: ListingStatus): Promise<AdminListing>;
   updateEndTime(id: number, update: { endTime?: string; addSeconds?: number }): Promise<AdminListing>;
+  updateRadarVisible(id: number, radarVisible: boolean): Promise<AdminListing>;
   placeSniperBid(id: number, shopperId: string, bidAmountUsd: number): Promise<BidResult>;
 }

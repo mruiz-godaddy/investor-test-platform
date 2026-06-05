@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS listings (
     auto_ext_window_sec     INTEGER NOT NULL DEFAULT 60,
     auto_ext_seconds        INTEGER NOT NULL DEFAULT 300,
     auto_ext_enabled        INTEGER NOT NULL DEFAULT 1,
+    radar_visible           INTEGER NOT NULL DEFAULT 0,
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
@@ -85,6 +86,9 @@ CREATE TABLE IF NOT EXISTS bids (
 	if err != nil {
 		log.Fatalf("failed to create tables: %v", err)
 	}
+
+	// Migrate existing DBs: add radar_visible if missing
+	d.Conn.Exec(`ALTER TABLE listings ADD COLUMN radar_visible INTEGER NOT NULL DEFAULT 0`)
 }
 
 func (d *DB) Close() {

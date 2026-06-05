@@ -36,6 +36,11 @@ export class AdminApiDataSource {
     return adminListingSchema.parse(data);
   }
 
+  async updateRadarVisible(id: number, radarVisible: boolean) {
+    const { data } = await api.put(`/admin/listings/${id}/radar`, { radarVisible });
+    return adminListingSchema.parse(data);
+  }
+
   async placeSniperBid(id: number, body: { shopperId: string; bidAmountUsd: number }) {
     const { data } = await api.post(`/admin/listings/${id}/sniper-bid`, body);
     return bidResultSchema.parse(data);
@@ -86,8 +91,11 @@ export class AdminApiDataSource {
     return timeResponseSchema.parse(data);
   }
 
-  async setupSystem() {
-    const { data } = await api.post('/admin/setup');
+  async setupSystem(durationMinutes?: number, appShopperId?: string) {
+    const body: Record<string, unknown> = {};
+    if (durationMinutes != null) body.durationMinutes = durationMinutes;
+    if (appShopperId) body.appShopperId = appShopperId;
+    const { data } = await api.post('/admin/setup', body);
     return data as { status: string; shoppers: number; listings: number };
   }
 

@@ -6,7 +6,7 @@ import type { IAdminRepository, SetupResult } from '../repositories/IAdminReposi
 export class SetupSystemUseCase {
   constructor(@inject(TOKENS.IAdminRepository) private repo: IAdminRepository) {}
 
-  execute(): Promise<SetupResult> {
-    return this.repo.setupSystem();
+  execute(durationMinutes?: number, appShopperId?: string): Promise<SetupResult> {
+    return this.repo.setupSystem(durationMinutes, appShopperId);
   }
 }

@@ -20,7 +20,7 @@ export interface SetupResult {
 }
 
 export interface IAdminRepository {
-  setupSystem(): Promise<SetupResult>;
+  setupSystem(durationMinutes?: number, appShopperId?: string): Promise<SetupResult>;
   resetDatabase(): Promise<{ status: string }>;
   wipeDatabase(): Promise<{ status: string }>;
   exportDatabase(): Promise<DatabaseExport>;
