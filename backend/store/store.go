@@ -574,7 +574,7 @@ func (s *Store) GetWonListingsForShopper(shopperID string) ([]model.Listing, err
 			l.seller_shopper_id, l.highest_bidder_shopper, l.auto_ext_window_sec, l.auto_ext_seconds,
 			l.auto_ext_enabled, l.radar_visible, l.created_at
 		 FROM listings l
-		 WHERE l.listing_status = 'SOLD'
+		 WHERE l.listing_status IN ('SOLD', 'CLOSED')
 		   AND l.highest_bidder_shopper = ?
 		   AND EXISTS (SELECT 1 FROM bids b WHERE b.listing_id = l.listing_id AND b.shopper_id = ? AND b.bid_status = 'ACTIVE')
 		 ORDER BY l.listing_id`,

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ func ResolveShopper(r *http.Request, s *store.Store) (*model.Shopper, error) {
 	if authHeader != "" {
 		extracted, err := extractShopperFromJWT(authHeader)
 		if err == nil && extracted != "" {
+			log.Printf("RESOLVED shopper=%s path=%s", extracted, r.URL.Path)
 			return s.GetOrCreateShopper(extracted)
 		}
 	}

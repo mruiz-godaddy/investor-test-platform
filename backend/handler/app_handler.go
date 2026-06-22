@@ -401,6 +401,7 @@ func (h *AppHandler) buildWonListingJSON(l *model.Listing) map[string]interface{
 		"listingStatus":     l.ListingStatus,
 		"listingType":       l.ListingType,
 		"auctionTypeId":     l.AuctionTypeID,
+		"priceType":         wonPriceType(l),
 		"endTime":           toFractionalISO(l.EndTime),
 		"askingPrice":       priceArray(l.AskingPriceUsd),
 		"salePrice":         salePrice,
@@ -557,6 +558,21 @@ func priceTypeForListing(l *model.Listing) string {
 		return "BUY_IT_NOW"
 	}
 	return "AUCTION"
+}
+
+// wonPriceType maps a won listing's auction_type code to the app's PriceType so the
+// won add-to-cart itc resolves correctly (member OCO → OFFER_COUNTER_OFFER, etc.).
+func wonPriceType(l *model.Listing) string {
+	switch l.AuctionTypeID {
+	case 9:
+		return "OFFER_COUNTER_OFFER"
+	case 10:
+		return "OFFER_COUNTER_OFFER_BIN"
+	case 11:
+		return "BUY_IT_NOW"
+	default:
+		return "AUCTION"
+	}
 }
 
 // binInventoryTypes are the auction_type codes the app renders as BIN / closeout /
