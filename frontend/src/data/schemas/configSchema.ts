@@ -6,4 +6,5 @@ export const configSnapshotSchema = z.object({
   finalizerIntervalMs: z.number(),
   autoExtWindowSec: z.number(),
   autoExtSeconds: z.number(),
+  includeBin: z.boolean(),
 });

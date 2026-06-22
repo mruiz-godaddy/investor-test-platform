@@ -89,10 +89,15 @@ func (h *AppHandler) GetBiddingListings(w http.ResponseWriter, r *http.Request) 
 	// app's Bidding tab is non-empty and bid flows can be driven end-to-end. Returns local only
 	// (no upstream proxy/merge) to stay fast and fully controllable.
 	if len(result) == 0 {
+		includeBin := h.Config.GetIncludeBin()
 		for i := range allListings {
-			if allListings[i].ListingStatus == model.StatusOpen {
-				result = append(result, h.buildListingJSON(&allListings[i], shopper))
+			if allListings[i].ListingStatus != model.StatusOpen {
+				continue
 			}
+			if !includeBin && isBinInventoryType(&allListings[i]) {
+				continue
+			}
+			result = append(result, h.buildListingJSON(&allListings[i], shopper))
 		}
 	}
 
@@ -115,12 +120,17 @@ func (h *AppHandler) GetWatchlistListings(w http.ResponseWriter, r *http.Request
 		shopper, _ = h.Store.GetOrCreateShopper("shopper-buyer-1")
 	}
 
+	includeBin := h.Config.GetIncludeBin()
 	allListings, _ := h.Store.ListListings()
 	result := make([]map[string]interface{}, 0, len(allListings))
 	for i := range allListings {
-		if allListings[i].ListingStatus == model.StatusOpen {
-			result = append(result, h.buildListingJSON(&allListings[i], shopper))
+		if allListings[i].ListingStatus != model.StatusOpen {
+			continue
 		}
+		if !includeBin && isBinInventoryType(&allListings[i]) {
+			continue
+		}
+		result = append(result, h.buildListingJSON(&allListings[i], shopper))
 	}
 
 	WriteJSON(w, 200, map[string]interface{}{
@@ -248,16 +258,23 @@ func (h *AppHandler) SearchListings(w http.ResponseWriter, r *http.Request) {
 	// Radar (the app's recommend feed) sends no query; search sends a query.
 	isRadar := query == ""
 
+	includeBin := h.Config.GetIncludeBin()
 	var result []map[string]interface{}
 	if query != "" {
 		listings, _ := h.Store.SearchListingsByDomain(query)
-		for _, l := range listings {
-			result = append(result, h.buildSearchResultJSON(&l))
+		for i := range listings {
+			if !includeBin && isBinInventoryType(&listings[i]) {
+				continue
+			}
+			result = append(result, h.buildSearchResultJSON(&listings[i]))
 		}
 	} else {
 		listings, _ := h.Store.GetRadarListings()
-		for _, l := range listings {
-			result = append(result, h.buildSearchResultJSON(&l))
+		for i := range listings {
+			if !includeBin && isBinInventoryType(&listings[i]) {
+				continue
+			}
+			result = append(result, h.buildSearchResultJSON(&listings[i]))
 		}
 	}
 
@@ -301,6 +318,77 @@ func (h *AppHandler) GetMemberAuthorized(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+type addToCartItem struct {
+	DomainName   string `json:"domainName"`
+	ListingID    int64  `json:"listingId"`
+	RequestPrice int64  `json:"requestPrice"`
+	AcceptTos    bool   `json:"acceptTos"`
+	ItcCode      string `json:"itcCode"`
+}
+
+// parseItcCode splits "dna_invapp_<area>_android_<inventory>" into (area, inventory).
+// Handles the base form with no surface, both collapsed ("dna_invapp_android_…") and
+// empty ("dna_invapp__android_…"). Returns empty strings for segments it cannot find.
+func parseItcCode(itc string) (area, inventory string) {
+	const mid = "android_"
+	rest := strings.TrimPrefix(itc, "dna_invapp_")
+	idx := strings.Index(rest, mid)
+	if idx < 0 {
+		return "", ""
+	}
+	inventory = rest[idx+len(mid):]
+	area = strings.TrimSuffix(rest[:idx], "_")
+	return area, inventory
+}
+
+// AddToCart handles POST /v1/aftermarket/domains/cart. The app sends a JSON array
+// of cart items plus an X-Itc-Code header. We capture the itc code per item so the
+// dashboard can verify which itc string the app sent for each inventory type.
+func (h *AppHandler) AddToCart(w http.ResponseWriter, r *http.Request) {
+	headerItc := r.Header.Get("X-Itc-Code")
+
+	var items []addToCartItem
+	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+		WriteError(w, "SERVER_ERROR", "Invalid request body", 400)
+		return
+	}
+
+	valid := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		itc := item.ItcCode
+		if itc == "" {
+			itc = headerItc
+		}
+		area, inventory := parseItcCode(itc)
+
+		inventoryType := 0
+		if listing, _ := h.Store.GetListing(item.ListingID); listing != nil {
+			inventoryType = listing.AuctionTypeID
+		}
+
+		if _, err := h.Store.CreateCartEvent(model.CartEvent{
+			DomainName:    item.DomainName,
+			ListingID:     item.ListingID,
+			InventoryType: inventoryType,
+			ItcCode:       itc,
+			ItcInventory:  inventory,
+			Area:          area,
+			RequestPrice:  item.RequestPrice,
+		}); err != nil {
+			WriteError(w, "SERVER_ERROR", "Failed to record cart event", 500)
+			return
+		}
+
+		log.Printf("CART add domain=%s listing=%d itc=%s (inventory=%s)", item.DomainName, item.ListingID, itc, inventory)
+		valid = append(valid, map[string]interface{}{"domainName": item.DomainName})
+	}
+
+	WriteJSON(w, 200, map[string]interface{}{
+		"validItems":  valid,
+		"failedItems": []interface{}{},
+	})
+}
+
 func (h *AppHandler) buildWonListingJSON(l *model.Listing) map[string]interface{} {
 	salePrice := []map[string]interface{}{}
 	if l.SalePriceUsd != nil && *l.SalePriceUsd > 0 {
@@ -341,6 +429,16 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 	askingPrice := float64(l.AskingPriceUsd) / 1_000_000
 	currentBid := float64(l.CurrentPriceUsd) / 1_000_000
 
+	// BIN/closeout/OCO-BIN listings expose a Buy Now price; the app keys the
+	// buy-now action off these fields (auction_type already selects the cell type).
+	hasBuyNow := buyNowInventoryTypes[l.AuctionTypeID]
+	buyNowAmount := 0.0
+	buyNowDisplay := ""
+	if hasBuyNow {
+		buyNowAmount = askingPrice
+		buyNowDisplay = formatUSD(askingPrice)
+	}
+
 	return map[string]interface{}{
 		// IDs
 		"auction_id": l.ListingID,
@@ -359,8 +457,8 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 		"current_bid_price_usd": currentBid,
 		"start_bid_amount":     askingPrice,
 		"start_bid_amount_usd": askingPrice,
-		"buy_it_now_amount":     0,
-		"buy_it_now_amount_usd": 0,
+		"buy_it_now_amount":     buyNowAmount,
+		"buy_it_now_amount_usd": buyNowAmount,
 		"reserved_price_amount":     0,
 		"reserved_price_amount_usd": 0,
 		"valuation_price":     0,
@@ -373,8 +471,8 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 		"current_bid_price_display_usd": formatUSD(currentBid),
 		"start_bid_amount_display":      formatUSD(askingPrice),
 		"start_bid_amount_display_usd":  formatUSD(askingPrice),
-		"buy_it_now_amount_display":     "",
-		"buy_it_now_amount_display_usd": "",
+		"buy_it_now_amount_display":     buyNowDisplay,
+		"buy_it_now_amount_display_usd": buyNowDisplay,
 		"reserved_price_amount_display":     "",
 		"reserved_price_amount_display_usd": "",
 		"valuation_price_display":     "",
@@ -389,7 +487,7 @@ func (h *AppHandler) buildSearchResultJSON(l *model.Listing) map[string]interfac
 		"bids":              l.BidsCount,
 		"monthly_traffic":   0,
 		"reserved_price_flag":  false,
-		"buy_it_now_flag":      false,
+		"buy_it_now_flag":      hasBuyNow,
 		"bid_accepted_flag":    false,
 		"is_website_included":  false,
 		"feature_listing_flag": false,
@@ -459,6 +557,29 @@ func priceTypeForListing(l *model.Listing) string {
 		return "BUY_IT_NOW"
 	}
 	return "AUCTION"
+}
+
+// binInventoryTypes are the auction_type codes the app renders as BIN / closeout /
+// OCO rows (i.e. non-biddable add-to-cart inventory). These map to the itc codes
+// expirycloseout / m2mbin / m2moco / m2mocobin in AuctionRequestAddToCart.
+var binInventoryTypes = map[int]bool{
+	20: true, // GoDaddy closeout    → expirycloseout
+	39: true, // partner closeout    → expirycloseout
+	11: true, // public buy-it-now   → m2mbin
+	10: true, // public OCO + buy now → m2mocobin
+	9:  true, // public OCO (offer)  → m2moco
+}
+
+// buyNowInventoryTypes are the BIN types that expose an actual Buy Now action
+// (everything in binInventoryTypes except the offer-only OCO types).
+var buyNowInventoryTypes = map[int]bool{
+	20: true, 39: true, 11: true, 10: true,
+}
+
+// isBinInventoryType reports whether a listing is BIN/closeout/OCO inventory
+// (used to gate app-facing visibility behind the includeBin config toggle).
+func isBinInventoryType(l *model.Listing) bool {
+	return binInventoryTypes[l.AuctionTypeID]
 }
 
 func (h *AppHandler) buildListingJSON(listing *model.Listing, shopper *model.Shopper) map[string]interface{} {

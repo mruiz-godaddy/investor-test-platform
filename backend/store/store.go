@@ -483,6 +483,49 @@ func (s *Store) ListAllBids() ([]model.Bid, error) {
 	return bids, rows.Err()
 }
 
+// --- Cart Event Operations ---
+
+func (s *Store) CreateCartEvent(e model.CartEvent) (int64, error) {
+	result, err := s.DB.Conn.Exec(
+		`INSERT INTO cart_events (domain_name, listing_id, inventory_type, itc_code, itc_inventory, area, request_price)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		e.DomainName, e.ListingID, e.InventoryType, e.ItcCode, e.ItcInventory, e.Area, e.RequestPrice,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (s *Store) ListCartEvents() ([]model.CartEvent, error) {
+	rows, err := s.DB.Conn.Query(
+		`SELECT event_id, domain_name, listing_id, inventory_type, itc_code, itc_inventory, area, request_price, created_at
+		 FROM cart_events ORDER BY event_id DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []model.CartEvent
+	for rows.Next() {
+		var e model.CartEvent
+		if err := rows.Scan(
+			&e.EventID, &e.DomainName, &e.ListingID, &e.InventoryType,
+			&e.ItcCode, &e.ItcInventory, &e.Area, &e.RequestPrice, &e.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+
+func (s *Store) ClearCartEvents() error {
+	_, err := s.DB.Conn.Exec(`DELETE FROM cart_events`)
+	return err
+}
+
 // ImportShopper inserts a shopper with exact field values (for DB import).
 func (s *Store) ImportShopper(sh model.Shopper) error {
 	_, err := s.DB.Conn.Exec(

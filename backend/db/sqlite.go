@@ -82,6 +82,18 @@ CREATE TABLE IF NOT EXISTS bids (
     FOREIGN KEY (listing_id) REFERENCES listings(listing_id),
     FOREIGN KEY (shopper_id) REFERENCES shoppers(shopper_id)
 );
+
+CREATE TABLE IF NOT EXISTS cart_events (
+    event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain_name     TEXT    NOT NULL,
+    listing_id      INTEGER NOT NULL DEFAULT 0,
+    inventory_type  INTEGER NOT NULL DEFAULT 0,
+    itc_code        TEXT    NOT NULL,
+    itc_inventory   TEXT    NOT NULL DEFAULT '',
+    area            TEXT    NOT NULL DEFAULT '',
+    request_price   INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 `)
 	if err != nil {
 		log.Fatalf("failed to create tables: %v", err)
@@ -113,6 +125,7 @@ func (d *DB) DropAll() {
 	d.Conn.Exec("DELETE FROM bids")
 	d.Conn.Exec("DELETE FROM listings")
 	d.Conn.Exec("DELETE FROM shoppers")
+	d.Conn.Exec("DELETE FROM cart_events")
 	d.Conn.Exec("DELETE FROM sqlite_sequence")
 	d.Conn.Exec("PRAGMA foreign_keys=ON")
 }

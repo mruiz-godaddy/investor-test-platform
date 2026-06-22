@@ -4,6 +4,7 @@ export interface ConfigSnapshot {
   finalizerIntervalMs: number;
   autoExtWindowSec: number;
   autoExtSeconds: number;
+  includeBin: boolean;
 }
 
 export interface ConfigUpdate {
@@ -12,4 +13,5 @@ export interface ConfigUpdate {
   finalizerIntervalMs?: number;
   autoExtWindowSec?: number;
   autoExtSeconds?: number;
+  includeBin?: boolean;
 }

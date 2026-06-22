@@ -3,6 +3,7 @@ import { ROUTES } from '../router/routes';
 
 const navItems = [
   { to: ROUTES.AUCTIONS, label: 'Auctions' },
+  { to: ROUTES.BIN_DOMAINS, label: 'BIN Domains' },
   { to: ROUTES.LISTINGS, label: 'Listings' },
   { to: ROUTES.SHOPPERS, label: 'Shoppers' },
   { to: ROUTES.SCENARIOS, label: 'Scenarios' },

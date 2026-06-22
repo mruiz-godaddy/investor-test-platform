@@ -11,5 +11,6 @@ export function mapConfig(dto: ConfigDto): ConfigSnapshot {
     finalizerIntervalMs: dto.finalizerIntervalMs,
     autoExtWindowSec: dto.autoExtWindowSec,
     autoExtSeconds: dto.autoExtSeconds,
+    includeBin: dto.includeBin,
   };
 }

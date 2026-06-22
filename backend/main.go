@@ -102,11 +102,15 @@ func main() {
 	r.HandleFunc("/v1/aftermarket/domains/didNotWin", appH.GetLostListings).Methods("GET")
 	r.HandleFunc("/v4/aftermarket/find/auction/recommend", appH.SearchListings).Methods("GET")
 	r.HandleFunc("/v1/aftermarket/domains/member/authorized", appH.GetMemberAuthorized).Methods("GET")
+	r.HandleFunc("/v1/aftermarket/domains/cart", appH.AddToCart).Methods("POST")
 
 	// Admin endpoints
 	adminH := handler.NewAdminHandler(s, cfg, eng, sc)
 	r.HandleFunc("/admin/listings", adminH.CreateListing).Methods("POST")
 	r.HandleFunc("/admin/listings", adminH.ListListings).Methods("GET")
+	r.HandleFunc("/admin/listings/bin", adminH.GenerateBinListings).Methods("POST")
+	r.HandleFunc("/admin/cart-events", adminH.ListCartEvents).Methods("GET")
+	r.HandleFunc("/admin/cart-events", adminH.ClearCartEvents).Methods("DELETE")
 	r.HandleFunc("/admin/listings/{id}", adminH.GetListing).Methods("GET")
 	r.HandleFunc("/admin/listings/{id}/status", adminH.UpdateStatus).Methods("PUT")
 	r.HandleFunc("/admin/listings/{id}/endtime", adminH.UpdateEndTime).Methods("PUT")

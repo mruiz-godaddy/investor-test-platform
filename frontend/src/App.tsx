@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppLayout from './presentation/layouts/AppLayout';
 import AuctionsPage from './presentation/pages/AuctionsPage';
+import BinDomainsPage from './presentation/pages/BinDomainsPage';
 import ListingsPage from './presentation/pages/ListingsPage';
 import ListingDetailPage from './presentation/pages/ListingDetailPage';
 import ShoppersPage from './presentation/pages/ShoppersPage';
@@ -27,6 +28,7 @@ export default function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route path={ROUTES.AUCTIONS} element={<AuctionsPage />} />
+            <Route path={ROUTES.BIN_DOMAINS} element={<BinDomainsPage />} />
             <Route path={ROUTES.LISTINGS} element={<ListingsPage />} />
             <Route path={ROUTES.LISTING_DETAIL} element={<ListingDetailPage />} />
             <Route path={ROUTES.SHOPPERS} element={<ShoppersPage />} />

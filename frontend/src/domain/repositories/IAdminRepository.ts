@@ -19,8 +19,24 @@ export interface SetupResult {
   listings: number;
 }
 
+export interface GenerateBinResult {
+  status: string;
+  listings: number;
+  types: number[];
+  details: unknown[];
+}
+
+export interface GenerateBinOptions {
+  countPerType?: number;
+  durationMinutes?: number;
+  types?: number[];
+}
+
 export interface IAdminRepository {
   setupSystem(durationMinutes?: number, appShopperId?: string): Promise<SetupResult>;
+  generateBin(opts: GenerateBinOptions): Promise<GenerateBinResult>;
+  getCartEvents(): Promise<import('../entities/CartEvent').CartEvent[]>;
+  clearCartEvents(): Promise<{ status: string }>;
   resetDatabase(): Promise<{ status: string }>;
   wipeDatabase(): Promise<{ status: string }>;
   exportDatabase(): Promise<DatabaseExport>;

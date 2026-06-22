@@ -508,13 +508,14 @@ func (h *AdminHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		FinalizerIntervalMs     *int  `json:"finalizerIntervalMs"`
 		AutoExtWindowSec        *int  `json:"autoExtWindowSec"`
 		AutoExtSeconds          *int  `json:"autoExtSeconds"`
+		IncludeBin              *bool `json:"includeBin"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteJSON(w, 400, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	h.Config.Update(req.AutoFinalize, req.StatusTransitionDelayMs, req.FinalizerIntervalMs, req.AutoExtWindowSec, req.AutoExtSeconds)
+	h.Config.Update(req.AutoFinalize, req.StatusTransitionDelayMs, req.FinalizerIntervalMs, req.AutoExtWindowSec, req.AutoExtSeconds, req.IncludeBin)
 	log.Printf("ADMIN config updated")
 	WriteJSON(w, 200, h.Config.Snapshot())
 }
@@ -864,6 +865,132 @@ func (h *AdminHandler) SetupSystem(w http.ResponseWriter, r *http.Request) {
 		"lost":         lostCount,
 		"details":      createdListings,
 	})
+}
+
+// --- 5.15 GenerateBinListings — POST /admin/listings/bin ---
+
+// binTypeToListingType maps an auction_type code to the app's listingType string.
+func binTypeToListingType(auctionTypeID int) string {
+	switch auctionTypeID {
+	case 20, 39:
+		return "CLOSEOUT_DOMAINS"
+	case 11:
+		return "BUY_IT_NOW"
+	case 9, 10:
+		return "MEMBER_LISTINGS"
+	default:
+		return "BUY_IT_NOW"
+	}
+}
+
+// GenerateBinListings appends BIN/closeout/OCO listings on top of whatever already
+// exists (no wipe), mirroring SetupSystem's per-type domain generation. Each created
+// listing carries the inventory type that drives a distinct itc code in the app.
+func (h *AdminHandler) GenerateBinListings(w http.ResponseWriter, r *http.Request) {
+	countPerType := 1
+	durationMin := 60
+	types := []int{20, 39, 11, 10, 9}
+
+	if r.Body != nil {
+		var body struct {
+			CountPerType    *int  `json:"countPerType"`
+			DurationMinutes *int  `json:"durationMinutes"`
+			Types           []int `json:"types"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			if body.CountPerType != nil && *body.CountPerType >= 1 {
+				countPerType = *body.CountPerType
+			}
+			if body.DurationMinutes != nil && *body.DurationMinutes >= 1 {
+				durationMin = *body.DurationMinutes
+			}
+			if len(body.Types) > 0 {
+				types = body.Types
+			}
+		}
+	}
+
+	// Ensure a seller exists (seed defaults may only have "shopper-seller").
+	seller := "shopper-seller-1"
+	h.Store.GetOrCreateShopper(seller)
+
+	now := lifecycle.Now()
+	startTime := now.Format(time.RFC3339)
+	endTime := now.Add(time.Duration(durationMin) * time.Minute).Format(time.RFC3339)
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	created := make([]map[string]interface{}, 0, len(types)*countPerType)
+
+	for _, auctionTypeID := range types {
+		listingType := binTypeToListingType(auctionTypeID)
+		for n := 0; n < countPerType; n++ {
+			letter := letters[rand.Intn(len(letters))]
+			word := pickRandom(setupWords[letter])
+			suffix := rand.Intn(900) + 100
+			tld := pickRandom(setupTLDs)
+			domainName := fmt.Sprintf("%s%d%s", word, suffix, tld)
+			askingPrice := pickRandom(setupAskingPrices)
+
+			listing := model.Listing{
+				DomainName:      domainName,
+				ListingStatus:   model.StatusOpen,
+				ListingType:     listingType,
+				AuctionTypeID:   auctionTypeID,
+				StartTime:       startTime,
+				EndTime:         endTime,
+				AskingPriceUsd:  askingPrice,
+				SellerShopperID: seller,
+				AutoExtEnabled:  false,
+				RadarVisible:    true,
+			}
+
+			id, err := h.Store.CreateListing(listing)
+			if err != nil {
+				WriteJSON(w, 500, map[string]string{"error": fmt.Sprintf("create BIN listing %s: %v", domainName, err)})
+				return
+			}
+
+			created = append(created, map[string]interface{}{
+				"listingId":     id,
+				"domainName":    domainName,
+				"auctionTypeId": auctionTypeID,
+				"listingType":   listingType,
+				"endTime":       endTime,
+			})
+		}
+	}
+
+	log.Printf("ADMIN generate-bin — %d BIN/closeout/OCO listings appended", len(created))
+	WriteJSON(w, 201, map[string]interface{}{
+		"status":   "created",
+		"listings": len(created),
+		"types":    types,
+		"details":  created,
+	})
+}
+
+// --- 5.16 ListCartEvents — GET /admin/cart-events ---
+
+func (h *AdminHandler) ListCartEvents(w http.ResponseWriter, r *http.Request) {
+	events, err := h.Store.ListCartEvents()
+	if err != nil {
+		WriteJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	if events == nil {
+		events = []model.CartEvent{}
+	}
+	WriteJSON(w, 200, events)
+}
+
+// --- 5.17 ClearCartEvents — DELETE /admin/cart-events ---
+
+func (h *AdminHandler) ClearCartEvents(w http.ResponseWriter, r *http.Request) {
+	if err := h.Store.ClearCartEvents(); err != nil {
+		WriteJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	log.Printf("ADMIN cart-events cleared")
+	WriteJSON(w, 200, map[string]string{"status": "cleared"})
 }
 
 func timeResponse() map[string]interface{} {

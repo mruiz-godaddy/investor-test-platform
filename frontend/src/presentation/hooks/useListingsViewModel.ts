@@ -8,6 +8,8 @@ import { PlaceSniperBidUseCase } from '../../domain/usecases/PlaceSniperBidUseCa
 import { UpdateRadarVisibleUseCase } from '../../domain/usecases/UpdateRadarVisibleUseCase';
 import { GetShoppersUseCase } from '../../domain/usecases/GetShoppersUseCase';
 import { SetupSystemUseCase } from '../../domain/usecases/SetupSystemUseCase';
+import { GenerateBinUseCase } from '../../domain/usecases/GenerateBinUseCase';
+import type { GenerateBinOptions } from '../../domain/repositories/IAdminRepository';
 import type { CreateListingRequest, ListingStatus } from '../../domain/entities/Listing';
 import { LISTINGS_POLL_INTERVAL_MS } from '../../lib/constants';
 import { useToastStore } from '../stores/toastStore';
@@ -23,6 +25,7 @@ export function useListingsViewModel() {
   const updateRadarVisible = useUseCase(UpdateRadarVisibleUseCase);
   const getShoppers = useUseCase(GetShoppersUseCase);
   const setupSystem = useUseCase(SetupSystemUseCase);
+  const generateBin = useUseCase(GenerateBinUseCase);
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['listings'],
@@ -48,6 +51,14 @@ export function useListingsViewModel() {
     onSuccess: (data) => {
       invalidateAll();
       addToast({ type: 'success', message: `System ready: ${data.shoppers} shoppers + ${data.listings} listings` });
+    },
+  });
+
+  const generateBinMutation = useMutation({
+    mutationFn: (opts: GenerateBinOptions = {}) => generateBin.execute(opts),
+    onSuccess: (data) => {
+      invalidateAll();
+      addToast({ type: 'success', message: `Added ${data.listings} BIN/closeout/OCO listings` });
     },
   });
 
@@ -81,6 +92,8 @@ export function useListingsViewModel() {
     createListing: createMutation.mutate,
     setupSystem: setupMutation.mutateAsync,
     isSettingUp: setupMutation.isPending,
+    generateBin: generateBinMutation.mutate,
+    isGeneratingBin: generateBinMutation.isPending,
     isCreating: createMutation.isPending,
     updateStatus: statusMutation.mutate,
     updateEndTime: endTimeMutation.mutate,

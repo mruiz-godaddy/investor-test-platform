@@ -43,6 +43,18 @@ type Listing struct {
 	CreatedAt            string `json:"createdAt"`
 }
 
+type CartEvent struct {
+	EventID       int64  `json:"eventId"`
+	DomainName    string `json:"domainName"`
+	ListingID     int64  `json:"listingId"`
+	InventoryType int    `json:"inventoryType"`
+	ItcCode       string `json:"itcCode"`
+	ItcInventory  string `json:"itcInventory"`
+	Area          string `json:"area"`
+	RequestPrice  int64  `json:"requestPrice"`
+	CreatedAt     string `json:"createdAt"`
+}
+
 type Bid struct {
 	BidID        string `json:"bidId"`
 	ListingID    int64  `json:"listingId"`

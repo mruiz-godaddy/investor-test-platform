@@ -7,6 +7,7 @@ import { shopperDetailSchema } from '../schemas/shopperDetailSchema';
 import { configSnapshotSchema } from '../schemas/configSchema';
 import { timeResponseSchema } from '../schemas/timeSchema';
 import { scenarioResultSchema } from '../schemas/scenarioSchema';
+import { cartEventArraySchema } from '../schemas/cartEventSchema';
 import { z } from 'zod';
 
 @injectable()
@@ -97,6 +98,21 @@ export class AdminApiDataSource {
     if (appShopperId) body.appShopperId = appShopperId;
     const { data } = await api.post('/admin/setup', body);
     return data as { status: string; shoppers: number; listings: number };
+  }
+
+  async generateBin(body: { countPerType?: number; durationMinutes?: number; types?: number[] }) {
+    const { data } = await api.post('/admin/listings/bin', body);
+    return data as { status: string; listings: number; types: number[]; details: unknown[] };
+  }
+
+  async getCartEvents() {
+    const { data } = await api.get('/admin/cart-events');
+    return cartEventArraySchema.parse(data);
+  }
+
+  async clearCartEvents() {
+    const { data } = await api.delete('/admin/cart-events');
+    return data as { status: string };
   }
 
   async wipeDatabase() {

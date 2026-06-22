@@ -13,6 +13,7 @@ export default function ConfigForm({ config, onUpdate, isPending }: Props) {
   const [finalizerInterval, setFinalizerInterval] = useState(1000);
   const [autoExtWindowSec, setAutoExtWindowSec] = useState(60);
   const [autoExtSeconds, setAutoExtSeconds] = useState(300);
+  const [includeBin, setIncludeBin] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -21,6 +22,7 @@ export default function ConfigForm({ config, onUpdate, isPending }: Props) {
       setFinalizerInterval(config.finalizerIntervalMs);
       setAutoExtWindowSec(config.autoExtWindowSec);
       setAutoExtSeconds(config.autoExtSeconds);
+      setIncludeBin(config.includeBin);
     }
   }, [config]);
 
@@ -32,6 +34,7 @@ export default function ConfigForm({ config, onUpdate, isPending }: Props) {
     if (config && finalizerInterval !== config.finalizerIntervalMs) update.finalizerIntervalMs = finalizerInterval;
     if (config && autoExtWindowSec !== config.autoExtWindowSec) update.autoExtWindowSec = autoExtWindowSec;
     if (config && autoExtSeconds !== config.autoExtSeconds) update.autoExtSeconds = autoExtSeconds;
+    if (config && includeBin !== config.includeBin) update.includeBin = includeBin;
     onUpdate(update);
   };
 
@@ -43,6 +46,11 @@ export default function ConfigForm({ config, onUpdate, isPending }: Props) {
           <input type="checkbox" checked={autoFinalize} onChange={(e) => setAutoFinalize(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-indigo-600" />
           <label className="text-lg text-gray-700 dark:text-gray-200">Auto-Finalize</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" checked={includeBin} onChange={(e) => setIncludeBin(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-indigo-600" />
+          <label className="text-lg text-gray-700 dark:text-gray-200">Include BIN domains in app feeds</label>
         </div>
         <div>
           <label className="block text-base font-medium text-gray-700 dark:text-gray-200">Status Transition Delay (ms)</label>

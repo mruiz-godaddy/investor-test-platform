@@ -1,5 +1,6 @@
 export const ROUTES = {
   AUCTIONS: '/',
+  BIN_DOMAINS: '/bin-domains',
   LISTINGS: '/listings',
   LISTING_DETAIL: '/listings/:id',
   SHOPPERS: '/shoppers',
